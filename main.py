@@ -33,9 +33,8 @@ MUTED_USERS = {}
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
 
-# ذاكرة لعبة الأحكام
 GAME_ACTIVE = False
-GAME_PLAYERS = []  # قائمة تخزين بيانات اللاعبين [{id, name}]
+GAME_PLAYERS = []
 GAME_CHAT_ID = None
 
 # ----------------------------------------------------
@@ -79,10 +78,8 @@ async def show_main_menu(event):
     await event.edit(MAIN_MENU)
 
 # ----------------------------------------------------
-# 4. الأوامر الخارجية والداخلية
+# 4. الأوامر
 # ----------------------------------------------------
-
-# --- .م1 ---
 @client.on(events.NewMessage(pattern=r"^\.م1$", outgoing=True))
 async def m1(event):
     await event.edit("📌 **أوامر البحث والوسائط (.م1):**\n• `.صورة` [اسم البحث]\n• `.بحث` [نص البحث]")
@@ -92,7 +89,6 @@ async def search_cmd(event):
     query = event.pattern_match.group(1)
     await event.edit(f"🔍 **جاري البحث عن:** `{query}`\n🔗 https://www.google.com/search?q={query.replace(' ', '+')}")
 
-# --- .م2 ---
 @client.on(events.NewMessage(pattern=r"^\.م2$", outgoing=True))
 async def m2(event):
     await event.edit("📌 **أوامر الوقت والتاريخ (.م2):**\n• `.الوقت`\n• `.التاريخ`")
@@ -107,7 +103,6 @@ async def get_date(event):
     d = datetime.datetime.now().strftime("%Y-%m-%d")
     await event.edit(f"📅 **التاريخ الحالي:** `{d}`")
 
-# --- .م3 ---
 @client.on(events.NewMessage(pattern=r"^\.م3$", outgoing=True))
 async def m3(event):
     await event.edit("📌 **أوامر إدارة المجموعات (.م3):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بالرد)\n• `.فك كتم` (بالرد)")
@@ -147,7 +142,6 @@ async def unmute_user(event):
     else:
         await event.edit("⚠️ المستخدم غير مكتوم بالأساس.")
 
-# --- .م4 ---
 @client.on(events.NewMessage(pattern=r"^\.م4$", outgoing=True))
 async def m4(event):
     await event.edit("📌 **أوامر الردود التلقائية (.م4):**\n• `.رد` [الكلمة] = [الرد]\n• `.مسح الردود`")
@@ -164,7 +158,6 @@ async def clear_replies(event):
     REPLY_MAP.clear()
     await event.edit("🗑️ تم مسح جميع الردود التلقائية.")
 
-# --- .م5 ---
 @client.on(events.NewMessage(pattern=r"^\.م5$", outgoing=True))
 async def m5(event):
     await event.edit("📌 **أوامر المسح والتنظيف (.م5):**\n• `.مسح` [العدد]")
@@ -176,7 +169,6 @@ async def purge_messages(event):
     msgs = await client.get_messages(event.chat_id, limit=num)
     await client.delete_messages(event.chat_id, msgs)
 
-# --- .م6 (نظام لعبة الأحكام الجماعية) ---
 @client.on(events.NewMessage(pattern=r"^\.م6$", outgoing=True))
 async def m6(event):
     await event.edit(
@@ -192,7 +184,6 @@ async def start_ahkam_game(event):
     global GAME_ACTIVE, GAME_PLAYERS, GAME_CHAT_ID
     if not event.is_group:
         return await event.edit("⚠️ هذا الأمر يعمل داخل المجموعات فقط!")
-
     GAME_ACTIVE = True
     GAME_PLAYERS = []
     GAME_CHAT_ID = event.chat_id
@@ -207,17 +198,13 @@ async def join_ahkam_game(event):
     global GAME_ACTIVE, GAME_PLAYERS, GAME_CHAT_ID
     if not GAME_ACTIVE or event.chat_id != GAME_CHAT_ID:
         return
-
     sender = await event.get_sender()
     user_id = sender.id
     first_name = sender.first_name or "عضو"
-
     if any(p['id'] == user_id for p in GAME_PLAYERS):
         return await event.reply("⚠️ أنت منضم للعبة بالفعل!")
-
     if len(GAME_PLAYERS) >= 10:
         return await event.reply("❌ اكتمل العدد الأقصى للاعبين (10 أعضاء)!")
-
     GAME_PLAYERS.append({'id': user_id, 'name': first_name})
     await event.reply(f"✅ تم انضمام **[{first_name}](tg://user?id={user_id})** بنجاح! ({len(GAME_PLAYERS)}/10)")
 
@@ -226,14 +213,10 @@ async def draw_ahkam_game(event):
     global GAME_ACTIVE, GAME_PLAYERS, GAME_CHAT_ID
     if not GAME_ACTIVE or event.chat_id != GAME_CHAT_ID:
         return await event.edit("⚠️ لم تقم ببدء لعبة أحكام بعد! اكتب `.احكام` أولاً.")
-
     if len(GAME_PLAYERS) < 2:
         return await event.edit(f"⚠️ يجب انضمام شخصين على الأقل لبدء القرعة! (العدد الحالي: {len(GAME_PLAYERS)})")
-
     chosen = random.sample(GAME_PLAYERS, 2)
-    hakim = chosen[0]
-    mahkoum = chosen[1]
-
+    hakim, mahkoum = chosen[0], chosen[1]
     await event.edit(
         f"🎯 **نتائج القرعة للجولة الحالية:**\n\n"
         f"👑 **الحاكم:** [{hakim['name']}](tg://user?id={hakim['id']})\n"
@@ -250,7 +233,6 @@ async def stop_ahkam_game(event):
     GAME_CHAT_ID = None
     await event.edit("🔴 **تم إنهاء لعبة الأحكام وإعادة ضبط القائمة.**")
 
-# --- .م7 ---
 @client.on(events.NewMessage(pattern=r"^\.م7$", outgoing=True))
 async def m7(event):
     await event.edit("📌 **أوامر كشف الحساب والآيدي (.م7):**\n• `.ايدي`\n• `.فحص` (بالرد)")
@@ -271,7 +253,6 @@ async def inspect_user(event):
     u = await client.get_entity(r.sender_id)
     await event.edit(f"👤 **الاسم:** {u.first_name}\n🆔 **الآيدي:** `{u.id}`\n🌐 **اليوزر:** @{u.username if u.username else 'لا يوجد'}")
 
-# --- .م8 ---
 @client.on(events.NewMessage(pattern=r"^\.م8$", outgoing=True))
 async def m8(event):
     await event.edit("📌 **أوامر الحظر العام (.م8):**\n• `.حظر عام` (بالرد)\n• `.الغاء العام` (بالرد)")
@@ -295,7 +276,6 @@ async def ungban_user(event):
     else:
         await event.edit("⚠️ المستخدم غير محظور عاماً.")
 
-# --- .م9 ---
 @client.on(events.NewMessage(pattern=r"^\.م9$", outgoing=True))
 async def m9(event):
     await event.edit("📌 **أوامر الكتم العام (.م9):**\n• `.كتم عام` (بالرد)\n• `.الغاء كتم عام` (بالرد)")
@@ -319,7 +299,6 @@ async def ungmute_user(event):
     else:
         await event.edit("⚠️ المستخدم غير مكتوم عاماً.")
 
-# --- .م10 ---
 @client.on(events.NewMessage(pattern=r"^\.م10$", outgoing=True))
 async def m10(event):
     await event.edit("📌 **أوامر فحص الكروب والقنوات (.م10):**\n• `.الرابط` (يجلب رابط المجموعة)")
@@ -332,7 +311,6 @@ async def get_link(event):
     except Exception as e:
         await event.edit(f"❌ لم أستطع جلب الرابط: {e}")
 
-# --- .م11 ---
 @client.on(events.NewMessage(pattern=r"^\.م11$", outgoing=True))
 async def m11(event):
     await event.edit("📌 **أوامر تغيير الاسم (.م11):**\n• `.اسم` [الاسم الجديد]")
@@ -343,7 +321,6 @@ async def update_name(event):
     await client(functions.account.UpdateProfileRequest(first_name=name))
     await event.edit(f"✅ تم تحديث الاسم إلى: `{name}`")
 
-# --- .م12 ---
 @client.on(events.NewMessage(pattern=r"^\.م12$", outgoing=True))
 async def m12(event):
     await event.edit("📌 **أوامر البايو والبروفايل (.م12):**\n• `.بايو` [البايو الجديد]")
@@ -354,7 +331,6 @@ async def update_bio(event):
     await client(functions.account.UpdateProfileRequest(about=bio))
     await event.edit(f"✅ تم تحديث البايو إلى:\n`{bio}`")
 
-# --- .م13 ---
 @client.on(events.NewMessage(pattern=r"^\.م13$", outgoing=True))
 async def m13(event):
     await event.edit("📌 **أوامر حظر الكلمات (.م13):**\n• `.منع` [الكلمة]\n• `.قائمة المنع`")
@@ -372,7 +348,6 @@ async def list_blocked(event):
     words = "\n".join([f"• `{w}`" for w in BLOCKED_WORDS])
     await event.edit(f"📜 **الكلمات الممنوعة:**\n{words}")
 
-# --- .م14 ---
 @client.on(events.NewMessage(pattern=r"^\.م14$", outgoing=True))
 async def m14(event):
     await event.edit("📌 **أوامر المغادرة والانضمام (.م14):**\n• `.مغادرة`\n• `.انضمام` [رابط المحادثة]")
@@ -382,7 +357,6 @@ async def leave_chat(event):
     await event.edit("👋 جاري المغادرة...")
     await client(LeaveChannelRequest(event.chat_id))
 
-# --- .م15 ---
 @client.on(events.NewMessage(pattern=r"^\.م15$", outgoing=True))
 async def m15(event):
     await event.edit("📌 **أوامر إنشاء الكروبات والقنوات (.م15):**\n• `.انشاء كروب` [الاسم]")
@@ -393,7 +367,6 @@ async def create_group(event):
     await client(CreateChannelRequest(title=title, about="تم إنشاؤه عبر السورس", megagroup=True))
     await event.edit(f"✅ تم إنشاء المجموعة بنجاح: `{title}`")
 
-# --- .م16 ---
 @client.on(events.NewMessage(pattern=r"^\.م16$", outgoing=True))
 async def m16(event):
     await event.edit("📌 **أوامر إضافة الأعضاء (.م16):**\n• `.ضيف` [رابط الكروب]")
@@ -420,7 +393,6 @@ async def add_members(event):
     except Exception as err:
         await event.edit(f"❌ حدث خطأ: {err}")
 
-# --- .م17 ---
 @client.on(events.NewMessage(pattern=r"^\.م17$", outgoing=True))
 async def m17(event):
     await event.edit("📌 **تنظيف الحسابات المغلقة (.م17):**\n• `.تنظيف المغلقة`")
@@ -439,7 +411,6 @@ async def clean_deleted(event):
             except: pass
     await event.edit(f"🧹 تم طرد `{c}` حساب محذوف.")
 
-# --- .م18 ---
 @client.on(events.NewMessage(pattern=r"^\.م18$", outgoing=True))
 async def m18(event):
     await event.edit("📌 **حظر البوتات (.م18):**\n• `.طرد البوتات`")
@@ -459,7 +430,6 @@ async def kick_bots(event):
             except: pass
     await event.edit(f"🤖 تم طرد `{c}` بوت من المجموعة.")
 
-# --- .م19 ---
 @client.on(events.NewMessage(pattern=r"^\.م19$", outgoing=True))
 async def m19(event):
     await event.edit("📌 **أوامر التثبيت (.م19):**\n• `.تثبيت` (بالرد)\n• `.الغاء التثبيت`")
@@ -476,7 +446,6 @@ async def unpin_msg(event):
     await client.unpin_message(event.chat_id)
     await event.edit("📌 تم إلغاء تثبيت الرسالة الأخيرة.")
 
-# --- .م20 إلى .م29 ---
 @client.on(events.NewMessage(pattern=r"^\.م20$", outgoing=True))
 async def m20(event): await event.edit("📌 **أوامر نقل الإشراف (.م20):**\n• `.رفع مشرف` (بالرد)")
 
@@ -574,7 +543,7 @@ async def global_watcher(event):
         except: pass
 
 # ----------------------------------------------------
-# 6. التشغيل الآمن لمنعطلب المدخلات على Railway
+# 6. التشغيل الأكيد بدون استدعاء input()
 # ----------------------------------------------------
 async def main():
     await client.connect()
