@@ -15,6 +15,7 @@ from telethon.tl.functions.messages import (
 )
 from telethon.tl.types import ChatBannedRights, ChatAdminRights
 from telethon.sessions import StringSession
+from telethon.errors import UserPrivacyRestrictedError
 
 # ----------------------------------------------------
 # 1. إعدادات الجلسة والحساب
@@ -25,7 +26,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
+SOURCE_TITLE = "🇵🇹 Portuguese Source 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمصفوفات
@@ -407,6 +408,7 @@ async def add_members(event):
 
         added = 0
         failed = 0
+        restricted = 0
 
         for u in users:
             if u.bot or u.deleted or u.is_self:
@@ -414,8 +416,10 @@ async def add_members(event):
             try:
                 await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
                 added += 1
-                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n❌ **فشل:** `{failed}`")
-                await asyncio.sleep(2.5)
+                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n🔸 **قيود خصوصية:** `{restricted}`\n❌ **فشل:** `{failed}`")
+                await asyncio.sleep(3)
+            except UserPrivacyRestrictedError:
+                restricted += 1
             except Exception as e:
                 failed += 1
                 err_text = str(e)
@@ -426,7 +430,7 @@ async def add_members(event):
             if added >= 30:
                 break
 
-        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة: `{added}`\n🔸 فشل إضافة: `{failed}` (بسبب الخصوصية أو قيود الحساب)")
+        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة بنجاح: `{added}`\n🔸 قيود خصوصية (مرفوض): `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
 
     except Exception as err:
         await event.edit(f"❌ **حدث خطأ أثناء جلب المجموعة:**\n`{err}`")
