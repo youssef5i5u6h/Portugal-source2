@@ -37,7 +37,6 @@ MUTED_USERS = {}
 MUTED_PMS = set()
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
-ADDED_CONTACTS_SET = set()  # ذاكرة لحفظ آيديهات الأشخاص الذين أضافهم السكربت كجهات اتصال
 
 GAME_ACTIVE = False
 GAME_PLAYERS = []
@@ -63,7 +62,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م13` ➪ حظر الكلمات (`.منع [كلمة]` ، `.قائمة المنع`)
 • `.م14` ➪ التحكم بالمجموعات (`.مغادرة` ، `.انضمام [رابط]`)
 • `.م15` ➪ إنشاء المجموعات (`.انشاء كروب [الاسم]`)
-• `.م16` ➪ سحب الأعضاء لجهات الاتصال (`.ضيف [رابط]` ، `.مسح الجهات`)
+• `.م16` ➪ استخراج الأعضاء لملف (`.ضيف [رابط]`)
 • `.م17` ➪ الحسابات المحذوفة (`.تنظيف المغلقة`)
 • `.م18` ➪ إدارة البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
@@ -381,15 +380,15 @@ async def create_group(event):
     await client(CreateChannelRequest(title=title, about="تم إنشاؤه عبر السورس", megagroup=True))
     await event.edit(f"✅ تم إنشاء المجموعة بنجاح: `{title}`")
 
-# --- م16 (إضافة الأعضاء لجهات الاتصال + مسح الجهات) ---
+# --- م16 (استخراج الأعضاء لملف نصي حقيقي) ---
 @client.on(events.NewMessage(pattern=r"^\.م16$", outgoing=True))
 async def m16(event):
-    await event.edit(f"📌 **أوامر إضافة الأعضاء لجهات الاتصال (`.م16`):**\n• `.ضيف` [رابط الكروب]\n• `.مسح الجهات` (لحذف من أضافهم السورس)\n\n{SOURCE_TITLE}")
+    await event.edit(f"📌 **أوامر استخراج الأعضاء (`.م16`):**\n• `.ضيف` [رابط الكروب أو يوزره لاستخراجهم بملف]\n\n{SOURCE_TITLE}")
 
 @client.on(events.NewMessage(pattern=r"^\.ضيف\s+(.+)", outgoing=True))
-async def add_members_to_contacts(event):
+async def export_members_file(event):
     target = event.pattern_match.group(1).strip()
-    await event.edit("⏳ **جاري جلب الأعضاء وإضافتهم كجهات اتصال لحسابك...**")
+    await event.edit("⏳ **جاري جلب واستخراج أعضاء المجموعة في ملف...**")
     
     try:
         if "joinchat/" in target or "+" in target:
@@ -402,63 +401,37 @@ async def add_members_to_contacts(event):
 
         users = await client.get_participants(entity)
         if not users:
-            return await event.edit("❌ **لم يتم العثور على أعضاء أو الأعضاء مخفيين.**")
+            return await event.edit("❌ **لم يتم العثور على أعضاء أو أن الأعضاء مخفيين في هذه المجموعة.**")
 
-        added = 0
-        failed = 0
-
+        file_content = "====================================\n"
+        file_content += f"    قائمة الأعضاء المستخرجة عبر السورس\n"
+        file_content += "====================================\n\n"
+        
+        count = 0
         for u in users:
-            if u.bot or u.deleted or u.is_self:
+            if u.bot or u.deleted:
                 continue
-            try:
-                # إضافة المستخدم لجهات الاتصال الخاصة بحسابك
-                await client(functions.contacts.AddContactRequest(
-                    id=u,
-                    first_name=u.first_name or "عضو",
-                    last_name=u.last_name or "",
-                    phone="",
-                    add_phone_privacy_exception=True
-                ))
-                ADDED_CONTACTS_SET.add(u.id)
-                added += 1
-                
-                await event.edit(f"⏳ **جاري الإضافة كجهات اتصال...**\n✅ **تمت إضافتهم:** `{added}`\n❌ **فشل:** `{failed}`")
-                await asyncio.sleep(2.5)
-                
-            except Exception as e:
-                failed += 1
-                err_text = str(e)
-                if "FLOOD" in err_text:
-                    await event.edit(f"⚠️ **تم توقيف العملية مؤقتاً (حظر فلود):**\n✅ تمت إضافة `{added}` جهة اتصال.")
-                    return
-            
-            if added >= 50:  # حد أقصى للحماية في المرة الواحدة
-                break
+            username_str = f"@{u.username}" if u.username else "لا يوجد يوزر"
+            full_name = f"{u.first_name or ''} {u.last_name or ''}".strip()
+            file_content += f"الاسم: {full_name} | اليوزر: {username_str} | الآيدي: {u.id}\n"
+            count += 1
 
-        await event.edit(f"✅ **اكتملت العملية بنجاح!**\n🔹 تم إضافتهم لجهات الاتصال: `{added}`\n❌ فشل: `{failed}`\n\n📌 *يمكنك الآن كتابة `.مسح الجهات` لمسحهم فور انتهائك.*")
+        file_path = "extracted_members.txt"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(file_content)
+
+        await client.send_file(
+            event.chat_id, 
+            file_path, 
+            caption=f"✅ **تم استخراج البيانات بنجاح!**\n📊 **عدد الأعضاء المستخرجين:** `{count}` عضو\n{SOURCE_TITLE}"
+        )
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        await event.delete()
 
     except Exception as err:
-        await event.edit(f"❌ **حدث خطأ:**\n`{err}`")
-
-@client.on(events.NewMessage(pattern=r"^\.مسح الجهات$", outgoing=True))
-async def clear_added_contacts(event):
-    global ADDED_CONTACTS_SET
-    if not ADDED_CONTACTS_SET:
-        return await event.edit("⚠️ **لا توجد جهات اتصال مضافة بواسطة السورس حالياً.**")
-    
-    await event.edit(f"⏳ **جاري حذف `{len(ADDED_CONTACTS_SET)}` جهة اتصال تم إضافتها مسبقاً...**")
-    deleted = 0
-    
-    for uid in list(ADDED_CONTACTS_SET):
-        try:
-            await client(functions.contacts.DeleteContactsRequest(id=[uid]))
-            ADDED_CONTACTS_SET.remove(uid)
-            deleted += 1
-            await asyncio.sleep(1.5)
-        except:
-            pass
-            
-    await event.edit(f"🗑️ **تم مسح جميع الجهات التي أضافها السورس ({deleted}) بنجاح!**\n✨ جهات اتصالك القديمة سليمة ولم تُمس.")
+        await event.edit(f"❌ **حدث خطأ أثناء الاستخراج:**\n`{err}`")
 
 # --- م17 ---
 @client.on(events.NewMessage(pattern=r"^\.م17$", outgoing=True))
