@@ -62,7 +62,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م13` ➪ حظر الكلمات (`.منع [كلمة]` ، `.قائمة المنع`)
 • `.م14` ➪ التحكم بالمجموعات (`.مغادرة` ، `.انضمام [رابط]`)
 • `.م15` ➪ إنشاء المجموعات (`.انشاء كروب [الاسم]`)
-• `.م16` ➪ استخراج الأعضاء لملف (`.ضيف [رابط]`)
+• `.م16` ➪ الإضافة للجهات والكروب (`.ضيف [رابط]`)
 • `.م17` ➪ الحسابات المحذوفة (`.تنظيف المغلقة`)
 • `.م18` ➪ إدارة البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
@@ -380,15 +380,18 @@ async def create_group(event):
     await client(CreateChannelRequest(title=title, about="تم إنشاؤه عبر السورس", megagroup=True))
     await event.edit(f"✅ تم إنشاء المجموعة بنجاح: `{title}`")
 
-# --- م16 (استخراج الأعضاء لملف نصي حقيقي) ---
+# --- م16 (إضافة الأعضاء لجهات الاتصال ثم إضافتهم للكروب الحالي) ---
 @client.on(events.NewMessage(pattern=r"^\.م16$", outgoing=True))
 async def m16(event):
-    await event.edit(f"📌 **أوامر استخراج الأعضاء (`.م16`):**\n• `.ضيف` [رابط الكروب أو يوزره لاستخراجهم بملف]\n\n{SOURCE_TITLE}")
+    await event.edit(f"📌 **أوامر الإضافة للجهات والكروب (`.م16`):**\n• `.ضيف` [رابط الكروب المراد السحب منه]\n\n{SOURCE_TITLE}")
 
 @client.on(events.NewMessage(pattern=r"^\.ضيف\s+(.+)", outgoing=True))
-async def export_members_file(event):
+async def add_contacts_then_group(event):
     target = event.pattern_match.group(1).strip()
-    await event.edit("⏳ **جاري جلب واستخراج أعضاء المجموعة في ملف...**")
+    if not event.is_group:
+        return await event.edit("⚠️ يرجى استخدام هذا الأمر داخل المجموعة التي تريد إضافة الأعضاء إليها!")
+    
+    await event.edit("⏳ **جاري سحب الأعضاء، إضافتهم لجهات الاتصال، ثم إضافتهم للكروب...**")
     
     try:
         if "joinchat/" in target or "+" in target:
@@ -401,37 +404,52 @@ async def export_members_file(event):
 
         users = await client.get_participants(entity)
         if not users:
-            return await event.edit("❌ **لم يتم العثور على أعضاء أو أن الأعضاء مخفيين في هذه المجموعة.**")
+            return await event.edit("❌ **لم يتم العثور على أعضاء أو أن الأعضاء مخفيين.**")
 
-        file_content = "====================================\n"
-        file_content += f"    قائمة الأعضاء المستخرجة عبر السورس\n"
-        file_content += "====================================\n\n"
-        
-        count = 0
+        added_contacts = 0
+        added_to_group = 0
+        failed = 0
+
         for u in users:
-            if u.bot or u.deleted:
+            if u.bot or u.deleted or u.is_self:
                 continue
-            username_str = f"@{u.username}" if u.username else "لا يوجد يوزر"
-            full_name = f"{u.first_name or ''} {u.last_name or ''}".strip()
-            file_content += f"الاسم: {full_name} | اليوزر: {username_str} | الآيدي: {u.id}\n"
-            count += 1
+            try:
+                # 1. إضافته كجهة اتصال أولاً
+                await client(functions.contacts.AddContactRequest(
+                    id=u,
+                    first_name=u.first_name or "عضو",
+                    last_name=u.last_name or "",
+                    phone="",
+                    add_phone_privacy_exception=True
+                ))
+                added_contacts += 1
+                
+                # 2. إضافته للكروب الحالي
+                await client(InviteToChannelRequest(event.chat_id, [u]))
+                added_to_group += 1
+                
+                await event.edit(
+                    f"⏳ **جاري التنفيذ...**\n"
+                    f"👤 تمت إضافته للجهات: `{added_contacts}`\n"
+                    f"👥 تمت إضافته للكروب: `{added_to_group}`\n"
+                    f"❌ فشل: `{failed}`"
+                )
+                await asyncio.sleep(4) # مهلة زمنية للحماية من الحظر
+                
+            except Exception as e:
+                failed += 1
+                err_text = str(e)
+                if "FLOOD" in err_text:
+                    await event.edit(f"⚠️ **تم توقيف العملية مؤقتاً بسبب حظر الفلود (FloodWait):**\n👥 تم إضافة `{added_to_group}` بنجاح للكروب.")
+                    return
+            
+            if added_to_group >= 30: # حد أقصى آمن للمرة الواحدة
+                break
 
-        file_path = "extracted_members.txt"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(file_content)
-
-        await client.send_file(
-            event.chat_id, 
-            file_path, 
-            caption=f"✅ **تم استخراج البيانات بنجاح!**\n📊 **عدد الأعضاء المستخرجين:** `{count}` عضو\n{SOURCE_TITLE}"
-        )
-        
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        await event.delete()
+        await event.edit(f"✅ **اكتملت العملية بنجاح!**\n🔹 جهات الاتصال المضافة: `{added_contacts}`\n👥 الأعضاء المضافين للكروب: `{added_to_group}`\n❌ فشل: `{failed}`")
 
     except Exception as err:
-        await event.edit(f"❌ **حدث خطأ أثناء الاستخراج:**\n`{err}`")
+        await event.edit(f"❌ **حدث خطأ:**\n`{err}`")
 
 # --- م17 ---
 @client.on(events.NewMessage(pattern=r"^\.م17$", outgoing=True))
