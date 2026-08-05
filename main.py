@@ -7,11 +7,15 @@ import re
 from telethon import TelegramClient, events, functions, types
 from telethon.tl.functions.channels import (
     EditBannedRequest, InviteToChannelRequest, GetParticipantsRequest,
-    LeaveChannelRequest, CreateChannelRequest, JoinChannelRequest, EditAdminRequest
+    LeaveChannelRequest, CreateChannelRequest, JoinChannelRequest, EditAdminRequest,
+    GetFullChannelRequest
 )
 from telethon.tl.functions.messages import (
     DeleteMessagesRequest, ExportChatInviteRequest, ImportChatInviteRequest,
-    ReportSpamRequest
+    ReportSpamRequest, GetFullChatRequest
+)
+from telethon.tl.functions.phone import (
+    CreateGroupCallRequest, DiscardGroupCallRequest
 )
 from telethon.tl.functions.contacts import BlockRequest
 from telethon.tl.types import ChatBannedRights, ChatAdminRights
@@ -110,16 +114,17 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م18` ➪ طرد البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
 • `.م20` ➪ الإشراف والترقية (`.رفع مشرف` ، `.تنزيل مشرف`)
-• `.م21` ➪ السبام والإنذار (`.بلاغ`)
-• `.م22` ➪ المحادثات الخاصة (`.كشف الخاص`)
-• `.م23` ➪ الصورة الشخصية (`.صورة البروفايل`)
-• `.م24` ➪ كتم الخاصة (`.كتم خاص` ، `.فك كتم خاص`)
-• `.م25` ➪ حفظ الميديا يدوي (`.حفظ`)
-• `.م26` ➪ الرتب والاصلاحات (`.رتبتي` ، `.رتبته`)
-• `.م27` ➪ النظام (`.ريستارت`)
-• `.م28` ➪ السرعة والاستجابة (`.بنج`)
-• `.م29` ➪ إحصائيات الحساب (`.الاحصائيات`)
-• `.م30` ➪ حالة الستريك (`.ستريك`)"""
+• `.م21` ➪ المكالمات الصوتية (`.افتح الكول` ، `.اقفل الكول`)
+• `.م22` ➪ السبام والإنذار (`.بلاغ`)
+• `.م23` ➪ المحادثات الخاصة (`.كشف الخاص`)
+• `.م24` ➪ الصورة الشخصية (`.صورة البروفايل`)
+• `.م25` ➪ كتم الخاصة (`.كتم خاص` ، `.فك كتم خاص`)
+• `.م26` ➪ حفظ الميديا يدوي (`.حفظ`)
+• `.م27` ➪ الرتب والاصلاحات (`.رتبتي` ، `.رتبته`)
+• `.م28` ➪ النظام (`.ريستارت`)
+• `.م29` ➪ السرعة والاستجابة (`.بنج`)
+• `.م30` ➪ إحصائيات الحساب (`.الاحصائيات`)
+• `.م31` ➪ حالة الستريك (`.ستريك`)"""
 
 # ----------------------------------------------------
 # 5. أوامر المطورين
@@ -174,7 +179,7 @@ async def list_developers(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 6. الأوامر الجديدة (حماية الخاص - الذاتية - السليب - البلوك)
+# 6. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك)
 # ----------------------------------------------------
 
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الحمايه$"))
@@ -315,7 +320,7 @@ async def disable_time_name(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 8. بقية الأوامر بالعامية (من .م1 إلى .م30)
+# 8. أوامر الأقسام (من .م1 إلى .م31)
 # ----------------------------------------------------
 
 # --- م1 ---
@@ -912,7 +917,7 @@ async def unpin_msg(event):
     msg = "📌 تم إلغاء التثبيت."
     await (event.edit(msg) if event.out else event.reply(msg))
 
-# --- م20 (الإشراف: رفع وتنزيل مشرف) ---
+# --- م20 ---
 @client.on(events.NewMessage(pattern=r"^\.م20$"))
 async def m20(event):
     if not is_sudo(event): return
@@ -949,11 +954,55 @@ async def demote_user(event):
     text = f"📉 تم تنزيل المستخدم من الإشراف: `{r.sender_id}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م21 ---
+# --- م21 (أوامر فتح وإغلاق الكول / المكالمات الصوتية) ---
 @client.on(events.NewMessage(pattern=r"^\.م21$"))
 async def m21(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر الإبلاغ والسبام (`.م21`):**\n• `.بلاغ` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر المكالمات الصوتية (`.م21`):**\n• `.افتح الكول`\n• `.اقفل الكول`\n\n{SOURCE_TITLE}"
+    await (event.edit(text) if event.out else event.reply(text))
+
+@client.on(events.NewMessage(pattern=r"^\.افتح الكول$"))
+async def start_group_call(event):
+    if not is_sudo(event): return
+    if event.is_private:
+        msg = "⚠️ **الأمر ده بيشتغل جوة الجروبات والقنوات بس!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    status_msg = await (event.edit("⏳ **جاري فتح المكالمة الصوتية (الكول)...**") if event.out else event.reply("⏳ **جاري فتح المكالمة الصوتية (الكول)...**"))
+    try:
+        await client(CreateGroupCallRequest(peer=event.chat_id, random_id=random.randint(10000, 99999)))
+        await status_msg.edit("🎙️ **تم فتح المحادثة الصوتية (الكول) بنجاح!**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء فتح الكول (تأكد أنك أدمن وبصلاحيات كاملة):**\n`{e}`")
+
+@client.on(events.NewMessage(pattern=r"^\.اقفل الكول$"))
+async def stop_group_call(event):
+    if not is_sudo(event): return
+    if event.is_private:
+        msg = "⚠️ **الأمر ده بيشتغل جوة الجروبات والقنوات بس!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    status_msg = await (event.edit("⏳ **جاري إغلاق المكالمة الصوتية (الكول)...**") if event.out else event.reply("⏳ **جاري إغلاق المكالمة الصوتية (الكول)...**"))
+    try:
+        if event.is_channel:
+            full_chat = await client(GetFullChannelRequest(event.chat_id))
+        else:
+            full_chat = await client(GetFullChatRequest(event.chat_id))
+
+        call = full_chat.full_chat.call
+        if not call:
+            return await status_msg.edit("⚠️ **مفيش كول مفتوح حالياً في المحادثة دي عشان أقفله!**")
+
+        await client(DiscardGroupCallRequest(call=call))
+        await status_msg.edit("🛑 **تم إغلاق المحادثة الصوتية (الكول) بنجاح!**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء إغلاق الكول:**\n`{e}`")
+
+# --- م22 ---
+@client.on(events.NewMessage(pattern=r"^\.م22$"))
+async def m22(event):
+    if not is_sudo(event): return
+    text = f"📌 **أوامر الإبلاغ والسبام (`.م22`):**\n• `.بلاغ` (بالرد)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.بلاغ$"))
@@ -967,11 +1016,11 @@ async def report_spam(event):
     text = "🚨 بلغنا التليجرام عن الحساب ده."
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م22 ---
-@client.on(events.NewMessage(pattern=r"^\.م22$"))
-async def m22(event):
+# --- م23 ---
+@client.on(events.NewMessage(pattern=r"^\.م23$"))
+async def m23(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر المحادثات الخاصة (`.م22`):**\n• `.كشف الخاص`\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر المحادثات الخاصة (`.م23`):**\n• `.كشف الخاص`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.كشف الخاص$"))
@@ -988,11 +1037,11 @@ async def inspect_pms(event):
             if count >= 10: break
     await status_msg.edit(text)
 
-# --- م23 ---
-@client.on(events.NewMessage(pattern=r"^\.م23$"))
-async def m23(event):
+# --- م24 ---
+@client.on(events.NewMessage(pattern=r"^\.م24$"))
+async def m24(event):
     if not is_sudo(event): return
-    text = f"📌 **صورة البروفايل (`.م23`):**\n• `.صورة البروفايل` (بالرد على صورة)\n\n{SOURCE_TITLE}"
+    text = f"📌 **صورة البروفايل (`.م24`):**\n• `.صورة البروفايل` (بالرد على صورة)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.صورة البروفايل$"))
@@ -1012,11 +1061,11 @@ async def set_profile_photo(event):
     if os.path.exists(photo): os.remove(photo)
     await status_msg.edit("🖼 تم تغيير الصورة بنجاح!")
 
-# --- م24 ---
-@client.on(events.NewMessage(pattern=r"^\.م24$"))
-async def m24(event):
+# --- م25 ---
+@client.on(events.NewMessage(pattern=r"^\.م25$"))
+async def m25(event):
     if not is_sudo(event): return
-    text = f"📌 **كتم المحادثات الخاصة (`.م24`):**\n• `.كتم خاص` (في الخاص أو بالرد)\n• `.فك كتم خاص`\n\n{SOURCE_TITLE}"
+    text = f"📌 **كتم المحادثات الخاصة (`.م25`):**\n• `.كتم خاص` (في الخاص أو بالرد)\n• `.فك كتم خاص`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.كتم خاص$"))
@@ -1041,11 +1090,11 @@ async def unmute_pm(event):
         text = "⚠️ الشخص ده مش مكتوم خاص."
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م25 ---
-@client.on(events.NewMessage(pattern=r"^\.م25$"))
-async def m25(event):
+# --- م26 ---
+@client.on(events.NewMessage(pattern=r"^\.م26$"))
+async def m26(event):
     if not is_sudo(event): return
-    text = f"📌 **حفظ الميديا (`.م25`):**\n• `.حفظ` (بالرد على صورة أو فيديو مؤقت)\n\n{SOURCE_TITLE}"
+    text = f"📌 **حفظ الميديا (`.م26`):**\n• `.حفظ` (بالرد على صورة أو فيديو مؤقت)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حفظ$"))
@@ -1064,11 +1113,11 @@ async def save_self_destruct(event):
     if os.path.exists(file_path): os.remove(file_path)
     await status_msg.edit("✅ **تم البعث للرسائل المحفوظة (Saved Messages)!**")
 
-# --- م26 ---
-@client.on(events.NewMessage(pattern=r"^\.م26$"))
-async def m26(event):
+# --- م27 ---
+@client.on(events.NewMessage(pattern=r"^\.م27$"))
+async def m27(event):
     if not is_sudo(event): return
-    text = f"📌 **معرفة رتب الأعضاء (`.م26`):**\n• `.رتبتي`\n• `.رتبته` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **معرفة رتب الأعضاء (`.م27`):**\n• `.رتبتي`\n• `.رتبته` (بالرد)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.رتبتي$"))
@@ -1098,11 +1147,11 @@ async def user_rank(event):
     text = f"📊 **رتبته:** {rank}"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م27 ---
-@client.on(events.NewMessage(pattern=r"^\.م27$"))
-async def m27(event):
+# --- م28 ---
+@client.on(events.NewMessage(pattern=r"^\.م28$"))
+async def m28(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر النظام (`.م27`):**\n• `.ريستارت`\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر النظام (`.م28`):**\n• `.ريستارت`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.ريستارت$"))
@@ -1111,11 +1160,11 @@ async def restart_bot(event):
     await (event.edit("🔄 **جاري إعادة تشغيل السورس...**") if event.out else event.reply("🔄 **جاري إعادة تشغيل السورس...**"))
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# --- م28 ---
-@client.on(events.NewMessage(pattern=r"^\.م28$"))
-async def m28(event):
+# --- م29 ---
+@client.on(events.NewMessage(pattern=r"^\.م29$"))
+async def m29(event):
     if not is_sudo(event): return
-    text = f"📌 **قياس السرعة (`.م28`):**\n• `.بنج`\n\n{SOURCE_TITLE}"
+    text = f"📌 **قياس السرعة (`.م29`):**\n• `.بنج`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.بنج$"))
@@ -1127,11 +1176,11 @@ async def ping_cmd(event):
     ms = (end - start).microseconds / 1000
     await status_msg.edit(f"⚡ **سرعة الاستجابة:** `{ms:.2f}ms`\n{SOURCE_TITLE}")
 
-# --- م29 ---
-@client.on(events.NewMessage(pattern=r"^\.م29$"))
-async def m29(event):
+# --- م30 ---
+@client.on(events.NewMessage(pattern=r"^\.م30$"))
+async def m30(event):
     if not is_sudo(event): return
-    text = f"📌 **إحصائيات الحساب (`.م29`):**\n• `.الاحصائيات`\n\n{SOURCE_TITLE}"
+    text = f"📌 **إحصائيات الحساب (`.م30`):**\n• `.الاحصائيات`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.الاحصائيات$"))
@@ -1146,11 +1195,11 @@ async def user_stats(event):
         elif d.is_channel: channels += 1
     await status_msg.edit(f"📊 **إحصائيات حسابك:**\n💬 **الخاص:** `{pms}`\n👥 **الجروبات:** `{groups}`\n📢 **القنوات:** `{channels}`")
 
-# --- م30 ---
-@client.on(events.NewMessage(pattern=r"^\.م30$"))
-async def m30(event):
+# --- م31 ---
+@client.on(events.NewMessage(pattern=r"^\.م31$"))
+async def m31(event):
     if not is_sudo(event): return
-    text = f"📌 **الستريك وحالة السورس (`.م30`):**\n• `.ستريك`\n\n{SOURCE_TITLE}"
+    text = f"📌 **الستريك وحالة السورس (`.م31`):**\n• `.ستريك`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.ستريك$"))
