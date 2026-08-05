@@ -62,7 +62,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م13` ➪ حظر الكلمات (`.منع [كلمة]` ، `.قائمة المنع`)
 • `.م14` ➪ التحكم بالمجموعات (`.مغادرة` ، `.انضمام [رابط]`)
 • `.م15` ➪ إنشاء المجموعات (`.انشاء كروب [الاسم]`)
-• `.م16` ➪ الإضافة للجهات والكروب (`.ضيف [رابط]`)
+• `.م16` ➪ الإضافة والحذف للجهات (`.ضيف [رابط]` ، `.حذف الجهات [رابط]`)
 • `.م17` ➪ الحسابات المحذوفة (`.تنظيف المغلقة`)
 • `.م18` ➪ إدارة البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
@@ -380,10 +380,10 @@ async def create_group(event):
     await client(CreateChannelRequest(title=title, about="تم إنشاؤه عبر السورس", megagroup=True))
     await event.edit(f"✅ تم إنشاء المجموعة بنجاح: `{title}`")
 
-# --- م16 (إضافة الأعضاء لجهات الاتصال ثم إضافتهم للكروب الحالي) ---
+# --- م16 (إضافة الأعضاء لجهات الاتصال ثم إضافتهم للكروب الحالي + حذفهم من الجهات) ---
 @client.on(events.NewMessage(pattern=r"^\.م16$", outgoing=True))
 async def m16(event):
-    await event.edit(f"📌 **أوامر الإضافة للجهات والكروب (`.م16`):**\n• `.ضيف` [رابط الكروب المراد السحب منه]\n\n{SOURCE_TITLE}")
+    await event.edit(f"📌 **أوامر الإضافة والحذف للجهات (`.م16`):**\n• `.ضيف` [رابط الكروب المراد السحب منه]\n• `.حذف الجهات` [رابط الكروب لحذفهم من جهات الاتصال]\n\n{SOURCE_TITLE}")
 
 @client.on(events.NewMessage(pattern=r"^\.ضيف\s+(.+)", outgoing=True))
 async def add_contacts_then_group(event):
@@ -447,6 +447,42 @@ async def add_contacts_then_group(event):
                 break
 
         await event.edit(f"✅ **اكتملت العملية بنجاح!**\n🔹 جهات الاتصال المضافة: `{added_contacts}`\n👥 الأعضاء المضافين للكروب: `{added_to_group}`\n❌ فشل: `{failed}`")
+
+    except Exception as err:
+        await event.edit(f"❌ **حدث خطأ:**\n`{err}`")
+
+
+@client.on(events.NewMessage(pattern=r"^\.حذف الجهات\s+(.+)", outgoing=True))
+async def delete_added_contacts(event):
+    target = event.pattern_match.group(1).strip()
+    await event.edit("⏳ **جاري جلب الأعضاء وحذفهم من جهات الاتصال الخاصة بك...**")
+    try:
+        if "joinchat/" in target or "+" in target:
+            hash_val = target.split("+")[-1].split("joinchat/")[-1]
+            updates = await client(ImportChatInviteRequest(hash_val))
+            entity = updates.chats[0]
+        else:
+            username = target.split("/")[-1].replace("@", "")
+            entity = await client.get_entity(username)
+
+        users = await client.get_participants(entity)
+        if not users:
+            return await event.edit("❌ **لم يتم العثور على أعضاء.**")
+
+        deleted_count = 0
+        failed = 0
+
+        for u in users:
+            if u.bot or u.deleted or u.is_self:
+                continue
+            try:
+                await client(functions.contacts.DeleteContactsRequest(id=[u]))
+                deleted_count += 1
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                failed += 1
+
+        await event.edit(f"✅ **تم الانتهاء من حذف الجهات بنجاح!**\n🗑️ تم حذفهم من جهات الاتصال: `{deleted_count}`\n❌ فشل/غير موجودين: `{failed}`")
 
     except Exception as err:
         await event.edit(f"❌ **حدث خطأ:**\n`{err}`")
