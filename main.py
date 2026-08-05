@@ -34,7 +34,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
+SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
