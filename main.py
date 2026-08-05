@@ -15,7 +15,7 @@ from telethon.tl.functions.messages import (
 )
 from telethon.tl.types import ChatBannedRights, ChatAdminRights
 from telethon.sessions import StringSession
-from telethon.errors import UserPrivacyRestrictedError
+from telethon.errors import UserPrivacyRestrictedError, ChatAdminRequiredError
 
 # ----------------------------------------------------
 # 1. إعدادات الجلسة والحساب
@@ -26,7 +26,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 Portuguese Source 🇵🇹"
+SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمصفوفات
@@ -391,7 +391,7 @@ async def add_members(event):
     if event.is_private:
         return await event.edit("⚠️ **هذا الأمر يعمل داخل المجموعات فقط.**")
     
-    await event.edit("⏳ **جاري جلب الأعضاء وبدء الإضافة...**")
+    await event.edit("⏳ **جاري جلب الأعضاء وبدء السحب (كعضو عادي)...**")
     
     try:
         if "joinchat/" in target or "+" in target:
@@ -414,31 +414,34 @@ async def add_members(event):
             if u.bot or u.deleted or u.is_self:
                 continue
             try:
-                # استلام نتيجة الطلب للتحقق هل تمت الإضافة حقاً أم تم تجاهلها من تليجرام
+                # محاولة الإضافة (بدون اشتراط كون الحساب مشرفاً)
                 result = await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
                 
-                # لو تليجرام رجع بيانات العضو في الرد يبقى اتحسبت صح، غير كدا تعتبر مرفوضة/متجاهلة
                 if result and getattr(result, 'users', None):
                     added += 1
                 else:
                     restricted += 1
                     
-                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n🔸 **قيود خصوصية / تجاهل:** `{restricted}`\n❌ **فشل:** `{failed}`")
+                await event.edit(f"⏳ **جاري السحب والإضافة...**\n✅ **تم سحبهم:** `{added}`\n🔸 **خصوصية / تجاهل:** `{restricted}`\n❌ **فشل / غير مسموح:** `{failed}`")
                 await asyncio.sleep(3)
                 
+            except ChatAdminRequiredError:
+                failed += 1
+                await event.edit("⚠️ **المجموعة هنا تمنع الأعضاء العاديين من إضافة أفراد (تتطلب صلاحية مشرف).**")
+                return
             except UserPrivacyRestrictedError:
                 restricted += 1
             except Exception as e:
                 failed += 1
                 err_text = str(e)
                 if "FLOOD" in err_text or "PeerFloodError" in err_text:
-                    await event.edit(f"⚠️ **تم توقيف الإضافة من التليجرام (حظر مؤقت للجهات):**\n✅ تم إضافة `{added}` عضو قبل التوقف.")
+                    await event.edit(f"⚠️ **تم توقيف السحب من التليجرام (حظر مؤقت):**\n✅ تم سحب `{added}` عضو قبل التوقف.")
                     return
             
             if added >= 30:
                 break
 
-        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة بنجاح: `{added}`\n🔸 قيود خصوصية / تجاهل من تليجرام: `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
+        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم سحب بنجاح: `{added}`\n🔸 قيود خصوصية / تجاهل: `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
 
     except Exception as err:
         await event.edit(f"❌ **حدث خطأ أثناء جلب المجموعة:**\n`{err}`")
