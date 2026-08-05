@@ -33,7 +33,7 @@ client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 
 # ----------------------------------------------------
-# 2. الذاكرة والمتغيرات العامة (إضافة آيديهات المطورين هنا)
+# 2. الذاكرة والمتغيرات العامة
 # ----------------------------------------------------
 GBAN_SET = set()
 GMUTE_SET = set()
@@ -42,10 +42,8 @@ MUTED_PMS = set()
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
 
-# 👑 أضف آيديهات المطورين هنا مفصولة بفواصل، أو عبر متغير البيئة DEVELOPERS
 DEVELOPERS = {1609075265} 
 
-# دعم إضافة مطورين من المتغيرات البيئية تلقائياً
 _env_devs = os.getenv("DEVELOPERS", "")
 if _env_devs:
     for _id in _env_devs.split(","):
@@ -56,20 +54,16 @@ GAME_ACTIVE = False
 GAME_PLAYERS = []
 GAME_CHAT_ID = None
 
-# متغيرات عرض الوقت في الاسم
 TIME_NAME_ACTIVE = False
 TIME_NAME_TASK = None
 ORIGINAL_NAME = ""
 
-# متغيرات ميزة حماية الخاص
 PM_PROTECTION_ACTIVE = False
 APPROVED_USERS = set()
 PM_WARNINGS = {}
 
-# متغيرات الحفظ التلقائي للذاتية والميديا
 AUTO_SAVE_MEDIA = False
 
-# متغيرات وضع السليب (النوم)
 SLEEP_ACTIVE = False
 SLEEP_START_TIME = None
 
@@ -92,6 +86,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت (7 تحذيرات ثم بلوك)
 • `.تعطيل الحمايه` ➪ إيقاف حماية الخاص
 • `.قبول` ➪ السماح لشخص بالحديث في الخاص بدون تحذيرات
+• `.بلوك` ➪ حظر المستخدم وحظره من التواصل
 • `.تفعيل الذاتيه` ➪ حفظ صور ميديا الخاص والتدمير الذاتي تلقائياً للمحفوظات
 • `.تعطيل الذاتيه` ➪ إيقاف حفظ الصور تلقائياً
 • `.سليب` ➪ تفعيل وضع النوم (يتعطل فور كتابتك لأي رسالة)
@@ -114,7 +109,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م17` ➪ الحسابات المغلقة (`.تنظيف المغلقة`)
 • `.م18` ➪ طرد البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
-• `.م20` ➪ الترقية والإشراف (`.رفع مشرف`)
+• `.م20` ➪ الإشراف والترقية (`.رفع مشرف` ، `.تنزيل مشرف`)
 • `.م21` ➪ السبام والإنذار (`.بلاغ`)
 • `.م22` ➪ المحادثات الخاصة (`.كشف الخاص`)
 • `.م23` ➪ الصورة الشخصية (`.صورة البروفايل`)
@@ -179,10 +174,9 @@ async def list_developers(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 6. الأوامر الجديدة (حماية الخاص - الذاتية - السليب)
+# 6. الأوامر الجديدة (حماية الخاص - الذاتية - السليب - البلوك)
 # ----------------------------------------------------
 
-# --- حماية الخاص ---
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الحمايه$"))
 async def enable_pm_guard(event):
     global PM_PROTECTION_ACTIVE
@@ -221,7 +215,26 @@ async def approve_user(event):
     msg = f"✅ **تم قبول المستخدم [{target_id}] ومسموحله يكلمك في الخاص من غير تحذيرات.**"
     await (event.edit(msg) if event.out else event.reply(msg))
 
-# --- حفظ الذاتية تلقائياً ---
+@client.on(events.NewMessage(pattern=r"^\.بلوك$"))
+async def block_user_cmd(event):
+    if not is_sudo(event): return
+    target_id = None
+    if event.is_private:
+        target_id = event.chat_id
+    elif event.is_reply:
+        reply = await event.get_reply_message()
+        target_id = reply.sender_id
+
+    if not target_id:
+        msg = "⚠️ **استخدم الأمر في المحادثة الخاصة أو بالرد على الشخص!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    try:
+        await (event.edit("تم حظر ال 🦓") if event.out else event.reply("تم حظر ال 🦓"))
+        await client(BlockRequest(target_id))
+    except Exception as e:
+        print(f"خطأ في تنفيذ البلوك: {e}")
+
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الذاتيه$"))
 async def enable_auto_media(event):
     global AUTO_SAVE_MEDIA
@@ -238,7 +251,6 @@ async def disable_auto_media(event):
     msg = "🛑 **تم تعطيل حفظ الصور الذاتية تلقائياً!**"
     await (event.edit(msg) if event.out else event.reply(msg))
 
-# --- وضع السليب (النوم) ---
 @client.on(events.NewMessage(pattern=r"^\.سليب$"))
 async def enable_sleep_mode(event):
     global SLEEP_ACTIVE, SLEEP_START_TIME
@@ -707,7 +719,7 @@ async def create_group(event):
     text = f"✅ تم عمل الجروب بنجاح: `{title}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م16 (طريقة سورس زدثون + حذف الجهات) ---
+# --- م16 ---
 @client.on(events.NewMessage(pattern=r"^\.م16$"))
 async def m16(event):
     if not is_sudo(event): return
@@ -900,11 +912,11 @@ async def unpin_msg(event):
     msg = "📌 تم إلغاء التثبيت."
     await (event.edit(msg) if event.out else event.reply(msg))
 
-# --- م20 ---
+# --- م20 (الإشراف: رفع وتنزيل مشرف) ---
 @client.on(events.NewMessage(pattern=r"^\.م20$"))
 async def m20(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر الإشراف والترقية (`.م20`):**\n• `.رفع مشرف` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر الإشراف والترقية (`.م20`):**\n• `.رفع مشرف` (بالرد)\n• `.تنزيل مشرف` (بالرد)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.رفع مشرف$"))
@@ -920,6 +932,21 @@ async def promote_user(event):
     )
     await client(EditAdminRequest(event.chat_id, r.sender_id, rights, custom_title="مشرف"))
     text = f"👑 تم ترقية المستخدم: `{r.sender_id}` أدمن."
+    await (event.edit(text) if event.out else event.reply(text))
+
+@client.on(events.NewMessage(pattern=r"^\.تنزيل مشرف$"))
+async def demote_user(event):
+    if not is_sudo(event): return
+    if not event.is_reply or not event.is_group:
+        msg = "⚠️ بالرد في جروب."
+        return await (event.edit(msg) if event.out else event.reply(msg))
+    r = await event.get_reply_message()
+    rights = ChatAdminRights(
+        post_messages=False, edit_messages=False, delete_messages=False,
+        ban_users=False, invite_users=False, pin_messages=False, add_admins=False
+    )
+    await client(EditAdminRequest(event.chat_id, r.sender_id, rights, custom_title="عضو"))
+    text = f"📉 تم تنزيل المستخدم من الإشراف: `{r.sender_id}`"
     await (event.edit(text) if event.out else event.reply(text))
 
 # --- م21 ---
@@ -1136,7 +1163,6 @@ async def streak_status(event):
 # 9. الحارس الذكي والمراقبة لجميع الأحداث
 # ----------------------------------------------------
 
-# (1) إلغاء وضع السليب فور كتابتك لأي رسالة
 @client.on(events.NewMessage(outgoing=True))
 async def auto_disable_sleep(event):
     global SLEEP_ACTIVE, SLEEP_START_TIME
@@ -1147,17 +1173,14 @@ async def auto_disable_sleep(event):
         SLEEP_START_TIME = None
         print("🛑 تم تعطيل وضع السليب تلقائياً بسبب إرسالك رسالة.")
 
-# (2) معالجة الرسائل الواردة (حماية الخاص، الذاتية، السليب، الحظر، الكتم)
 @client.on(events.NewMessage(incoming=True))
 async def global_incoming_watcher(event):
     global PM_WARNINGS, SLEEP_ACTIVE, SLEEP_START_TIME
     sender_id = event.sender_id
     if not sender_id: return
 
-    # تجاهل رسائلك أنت والمطورين
     if is_sudo(event): return
 
-    # --- حظر عام / كتم عام / كلمات ممنوعة ---
     if sender_id in GBAN_SET:
         try:
             await event.delete()
@@ -1183,11 +1206,9 @@ async def global_incoming_watcher(event):
                 except: pass
                 return
 
-    # --- ميزة الردود التلقائية ---
     if event.raw_text in REPLY_MAP:
         await event.reply(REPLY_MAP[event.raw_text])
 
-    # --- ميزة حفظ الذاتية والصور في الخاص تلقائياً ---
     if AUTO_SAVE_MEDIA and event.is_private and (event.photo or event.video or event.media):
         try:
             file_path = await event.download_media()
@@ -1197,7 +1218,6 @@ async def global_incoming_watcher(event):
         except Exception as e:
             print(f"خطأ في حفظ الذاتية: {e}")
 
-    # --- ميزة وضع السليب (النوم) ---
     if SLEEP_ACTIVE and SLEEP_START_TIME:
         should_respond = False
         if event.is_private:
@@ -1221,7 +1241,6 @@ async def global_incoming_watcher(event):
             )
             await event.reply(sleep_text)
 
-    # --- ميزة حماية الخاص (7 تحذيرات ثم بلوك) ---
     if PM_PROTECTION_ACTIVE and event.is_private and sender_id not in APPROVED_USERS:
         current_warns = PM_WARNINGS.get(sender_id, 0) + 1
         PM_WARNINGS[sender_id] = current_warns
