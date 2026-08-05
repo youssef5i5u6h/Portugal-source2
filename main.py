@@ -37,6 +37,7 @@ MUTED_USERS = {}
 MUTED_PMS = set()
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
+ADDED_CONTACTS_SET = set()  # ذاكرة لحفظ آيديهات الأشخاص الذين أضافهم السكربت كجهات اتصال
 
 GAME_ACTIVE = False
 GAME_PLAYERS = []
@@ -62,7 +63,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م13` ➪ حظر الكلمات (`.منع [كلمة]` ، `.قائمة المنع`)
 • `.م14` ➪ التحكم بالمجموعات (`.مغادرة` ، `.انضمام [رابط]`)
 • `.م15` ➪ إنشاء المجموعات (`.انشاء كروب [الاسم]`)
-• `.م16` ➪ نقل ونقل الاعضاء (`.ضيف [رابط كروب]`)
+• `.م16` ➪ سحب الأعضاء لجهات الاتصال (`.ضيف [رابط]` ، `.مسح الجهات`)
 • `.م17` ➪ الحسابات المحذوفة (`.تنظيف المغلقة`)
 • `.م18` ➪ إدارة البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
@@ -380,18 +381,15 @@ async def create_group(event):
     await client(CreateChannelRequest(title=title, about="تم إنشاؤه عبر السورس", megagroup=True))
     await event.edit(f"✅ تم إنشاء المجموعة بنجاح: `{title}`")
 
-# --- م16 ---
+# --- م16 (إضافة الأعضاء لجهات الاتصال + مسح الجهات) ---
 @client.on(events.NewMessage(pattern=r"^\.م16$", outgoing=True))
 async def m16(event):
-    await event.edit(f"📌 **أوامر إضافة الأعضاء (`.م16`):**\n• `.ضيف` [رابط الكروب]\n\n{SOURCE_TITLE}")
+    await event.edit(f"📌 **أوامر إضافة الأعضاء لجهات الاتصال (`.م16`):**\n• `.ضيف` [رابط الكروب]\n• `.مسح الجهات` (لحذف من أضافهم السورس)\n\n{SOURCE_TITLE}")
 
 @client.on(events.NewMessage(pattern=r"^\.ضيف\s+(.+)", outgoing=True))
-async def add_members(event):
+async def add_members_to_contacts(event):
     target = event.pattern_match.group(1).strip()
-    if event.is_private:
-        return await event.edit("⚠️ **هذا الأمر يعمل داخل المجموعات فقط.**")
-    
-    await event.edit("⏳ **جاري جلب الأعضاء وبدء السحب (كعضو عادي)...**")
+    await event.edit("⏳ **جاري جلب الأعضاء وإضافتهم كجهات اتصال لحسابك...**")
     
     try:
         if "joinchat/" in target or "+" in target:
@@ -404,47 +402,63 @@ async def add_members(event):
 
         users = await client.get_participants(entity)
         if not users:
-            return await event.edit("❌ **لم يتم العثور على أعضاء أو الأعضاء مخفيين في هذا الكروب.**")
+            return await event.edit("❌ **لم يتم العثور على أعضاء أو الأعضاء مخفيين.**")
 
         added = 0
         failed = 0
-        restricted = 0
 
         for u in users:
             if u.bot or u.deleted or u.is_self:
                 continue
             try:
-                # محاولة الإضافة (بدون اشتراط كون الحساب مشرفاً)
-                result = await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
+                # إضافة المستخدم لجهات الاتصال الخاصة بحسابك
+                await client(functions.contacts.AddContactRequest(
+                    id=u,
+                    first_name=u.first_name or "عضو",
+                    last_name=u.last_name or "",
+                    phone="",
+                    add_phone_privacy_exception=True
+                ))
+                ADDED_CONTACTS_SET.add(u.id)
+                added += 1
                 
-                if result and getattr(result, 'users', None):
-                    added += 1
-                else:
-                    restricted += 1
-                    
-                await event.edit(f"⏳ **جاري السحب والإضافة...**\n✅ **تم سحبهم:** `{added}`\n🔸 **خصوصية / تجاهل:** `{restricted}`\n❌ **فشل / غير مسموح:** `{failed}`")
-                await asyncio.sleep(3)
+                await event.edit(f"⏳ **جاري الإضافة كجهات اتصال...**\n✅ **تمت إضافتهم:** `{added}`\n❌ **فشل:** `{failed}`")
+                await asyncio.sleep(2.5)
                 
-            except ChatAdminRequiredError:
-                failed += 1
-                await event.edit("⚠️ **المجموعة هنا تمنع الأعضاء العاديين من إضافة أفراد (تتطلب صلاحية مشرف).**")
-                return
-            except UserPrivacyRestrictedError:
-                restricted += 1
             except Exception as e:
                 failed += 1
                 err_text = str(e)
-                if "FLOOD" in err_text or "PeerFloodError" in err_text:
-                    await event.edit(f"⚠️ **تم توقيف السحب من التليجرام (حظر مؤقت):**\n✅ تم سحب `{added}` عضو قبل التوقف.")
+                if "FLOOD" in err_text:
+                    await event.edit(f"⚠️ **تم توقيف العملية مؤقتاً (حظر فلود):**\n✅ تمت إضافة `{added}` جهة اتصال.")
                     return
             
-            if added >= 30:
+            if added >= 50:  # حد أقصى للحماية في المرة الواحدة
                 break
 
-        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم سحب بنجاح: `{added}`\n🔸 قيود خصوصية / تجاهل: `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
+        await event.edit(f"✅ **اكتملت العملية بنجاح!**\n🔹 تم إضافتهم لجهات الاتصال: `{added}`\n❌ فشل: `{failed}`\n\n📌 *يمكنك الآن كتابة `.مسح الجهات` لمسحهم فور انتهائك.*")
 
     except Exception as err:
-        await event.edit(f"❌ **حدث خطأ أثناء جلب المجموعة:**\n`{err}`")
+        await event.edit(f"❌ **حدث خطأ:**\n`{err}`")
+
+@client.on(events.NewMessage(pattern=r"^\.مسح الجهات$", outgoing=True))
+async def clear_added_contacts(event):
+    global ADDED_CONTACTS_SET
+    if not ADDED_CONTACTS_SET:
+        return await event.edit("⚠️ **لا توجد جهات اتصال مضافة بواسطة السورس حالياً.**")
+    
+    await event.edit(f"⏳ **جاري حذف `{len(ADDED_CONTACTS_SET)}` جهة اتصال تم إضافتها مسبقاً...**")
+    deleted = 0
+    
+    for uid in list(ADDED_CONTACTS_SET):
+        try:
+            await client(functions.contacts.DeleteContactsRequest(id=[uid]))
+            ADDED_CONTACTS_SET.remove(uid)
+            deleted += 1
+            await asyncio.sleep(1.5)
+        except:
+            pass
+            
+    await event.edit(f"🗑️ **تم مسح جميع الجهات التي أضافها السورس ({deleted}) بنجاح!**\n✨ جهات اتصالك القديمة سليمة ولم تُمس.")
 
 # --- م17 ---
 @client.on(events.NewMessage(pattern=r"^\.م17$", outgoing=True))
