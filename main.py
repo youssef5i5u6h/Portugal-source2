@@ -25,7 +25,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 PORTUGALI SOURCE 🇵🇹"
+SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمصفوفات
@@ -384,26 +384,52 @@ async def create_group(event):
 async def m16(event):
     await event.edit(f"📌 **أوامر إضافة الأعضاء (`.م16`):**\n• `.ضيف` [رابط الكروب]\n\n{SOURCE_TITLE}")
 
-@client.on(events.NewMessage(pattern=r"^\.ضيف\s+(https?://t\.me/[^\s]+|@[^\s]+)", outgoing=True))
+@client.on(events.NewMessage(pattern=r"^\.ضيف\s+(.+)", outgoing=True))
 async def add_members(event):
     target = event.pattern_match.group(1).strip()
-    if event.is_private: return await event.edit("⚠️ يعمل في المجموعات فقط.")
-    await event.edit("⏳ جاري إضافة الأعضاء...")
+    if event.is_private:
+        return await event.edit("⚠️ **هذا الأمر يعمل داخل المجموعات فقط.**")
+    
+    await event.edit("⏳ **جاري جلب الأعضاء وبدء الإضافة...**")
+    
     try:
-        entity = await client.get_entity(target)
+        if "joinchat/" in target or "+" in target:
+            hash_val = target.split("+")[-1].split("joinchat/")[-1]
+            updates = await client(ImportChatInviteRequest(hash_val))
+            entity = updates.chats[0]
+        else:
+            username = target.split("/")[-1].replace("@", "")
+            entity = await client.get_entity(username)
+
         users = await client.get_participants(entity)
+        if not users:
+            return await event.edit("❌ **لم يتم العثور على أعضاء أو الأعضاء مخفيين في هذا الكروب.**")
+
         added = 0
+        failed = 0
+
         for u in users:
-            if u.bot or u.deleted: continue
+            if u.bot or u.deleted or u.is_self:
+                continue
             try:
                 await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
                 added += 1
-                await asyncio.sleep(2)
-            except: pass
-            if added >= 30: break
-        await event.edit(f"✅ تم إضافة `{added}` عضو بنجاح.")
+                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n❌ **فشل:** `{failed}`")
+                await asyncio.sleep(2.5)
+            except Exception as e:
+                failed += 1
+                err_text = str(e)
+                if "FLOOD" in err_text or "PeerFloodError" in err_text:
+                    await event.edit(f"⚠️ **تم توقيف الإضافة من التليجرام (حظر مؤقت للجهات):**\n✅ تم إضافة `{added}` عضو قبل التوقف.")
+                    return
+            
+            if added >= 30:
+                break
+
+        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة: `{added}`\n🔸 فشل إضافة: `{failed}` (بسبب الخصوصية أو قيود الحساب)")
+
     except Exception as err:
-        await event.edit(f"❌ حدث خطأ: {err}")
+        await event.edit(f"❌ **حدث خطأ أثناء جلب المجموعة:**\n`{err}`")
 
 # --- م17 ---
 @client.on(events.NewMessage(pattern=r"^\.م17$", outgoing=True))
@@ -687,7 +713,7 @@ async def global_watcher(event):
 # ----------------------------------------------------
 # 6. تشغيل الحساب
 # ----------------------------------------------------
-print(f"⚡ {SOURCE_TITLE} IS RUNNING PERFECTLY! ⚡")
+print(f"⚡ {SOURCE_TITLE} يعمل بنجاح! ⚡")
 client.start()
 client.run_until_disconnected()
 
