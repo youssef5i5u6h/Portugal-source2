@@ -14,7 +14,7 @@ from telethon.tl.types import ChatBannedRights
 from telethon.sessions import StringSession
 
 # ----------------------------------------------------
-# 1. إعدادات الجلسة والحساب (تم تعديل المعالجة لمنع طلب Input)
+# 1. إعدادات الجلسة والحساب
 # ----------------------------------------------------
 API_ID = 24576280
 API_HASH = "2d331fea63e2dfeb0d2c2cf71a9a0cc9"
@@ -216,7 +216,7 @@ async def join_ahkam_game(event):
         return await event.reply("⚠️ أنت منضم للعبة بالفعل!")
 
     if len(GAME_PLAYERS) >= 10:
-        return await event.reply("❌ اكتمل العدد الأقصى للالاعبين (10 أعضاء)!")
+        return await event.reply("❌ اكتمل العدد الأقصى للاعبين (10 أعضاء)!")
 
     GAME_PLAYERS.append({'id': user_id, 'name': first_name})
     await event.reply(f"✅ تم انضمام **[{first_name}](tg://user?id={user_id})** بنجاح! ({len(GAME_PLAYERS)}/10)")
@@ -574,13 +574,17 @@ async def global_watcher(event):
         except: pass
 
 # ----------------------------------------------------
-# 6. التشغيل التلقائي الصارم بدون طلب مدخلات (منع EOFError على Railway)
+# 6. التشغيل الآمن لمنعطلب المدخلات على Railway
 # ----------------------------------------------------
 async def main():
-    await client.start()
+    await client.connect()
+    if not await client.is_user_authorized():
+        print("❌ الـ String Session غير صالحة أو تم إلغاؤها من تليجرام!")
+        return
+
     print(f"=== {SOURCE_TITLE} IS RUNNING SUCCESSFULLY ===")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
-    client.loop.run_until_complete(main())
+    asyncio.run(main())
 
