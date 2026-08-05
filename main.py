@@ -414,10 +414,18 @@ async def add_members(event):
             if u.bot or u.deleted or u.is_self:
                 continue
             try:
-                await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
-                added += 1
-                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n🔸 **قيود خصوصية:** `{restricted}`\n❌ **فشل:** `{failed}`")
+                # استلام نتيجة الطلب للتحقق هل تمت الإضافة حقاً أم تم تجاهلها من تليجرام
+                result = await client(InviteToChannelRequest(channel=event.chat_id, users=[u]))
+                
+                # لو تليجرام رجع بيانات العضو في الرد يبقى اتحسبت صح، غير كدا تعتبر مرفوضة/متجاهلة
+                if result and getattr(result, 'users', None):
+                    added += 1
+                else:
+                    restricted += 1
+                    
+                await event.edit(f"⏳ **جاري الإضافة...**\n✅ **تم إضافتهم:** `{added}`\n🔸 **قيود خصوصية / تجاهل:** `{restricted}`\n❌ **فشل:** `{failed}`")
                 await asyncio.sleep(3)
+                
             except UserPrivacyRestrictedError:
                 restricted += 1
             except Exception as e:
@@ -430,7 +438,7 @@ async def add_members(event):
             if added >= 30:
                 break
 
-        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة بنجاح: `{added}`\n🔸 قيود خصوصية (مرفوض): `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
+        await event.edit(f"✅ **اكتملت العملية!**\n🔹 تم إضافة بنجاح: `{added}`\n🔸 قيود خصوصية / تجاهل من تليجرام: `{restricted}`\n❌ أخطاء أخرى: `{failed}`")
 
     except Exception as err:
         await event.edit(f"❌ **حدث خطأ أثناء جلب المجموعة:**\n`{err}`")
