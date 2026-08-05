@@ -14,13 +14,13 @@ from telethon.tl.types import ChatBannedRights
 from telethon.sessions import StringSession
 
 # ----------------------------------------------------
-# 1. إعدادات الجلسة والحساب
+# 1. إعدادات الجلسة والحساب (تم تعديل المعالجة لمنع طلب Input)
 # ----------------------------------------------------
 API_ID = 24576280
 API_HASH = "2d331fea63e2dfeb0d2c2cf71a9a0cc9"
 STRING_SESSION = "1BJWap1wBu6wTWUI6KGHqA-rltuId7offBYF9yOSPs4eJYlvYFznWk_-xAkKxb3jHUecIxUaObuXYs4HPpfOiE45pYlIGmNToeZtpy8K6OhNW26h-HbG3MGhir-yrRgb8bufvixbF-XZ8lBkyJZ0OOahRl9l3SUYQhDdzptbTrSy2I4LDOvt96bu4yEV64owrtHKlE1KneUkdaKdhP7wM-1nAjOLvn1EbaUKGyEVfblvq2CBA-WepXGSzqa6Qvp0sG0bf0cPEZOcLPXM1NZEvRxrbcBuuh4u9bf-NGQtJaD6_S_3pb-9JVvcNl2wJjcGnfc5lV33XDmSKSA7iOfq3PujNg1oxX0E="
 
-client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
+client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
 SOURCE_TITLE = "🇵🇹 PORTUGALI SOURCE 🇵🇹"
 
@@ -176,9 +176,7 @@ async def purge_messages(event):
     msgs = await client.get_messages(event.chat_id, limit=num)
     await client.delete_messages(event.chat_id, msgs)
 
-# ----------------------------------------------------
 # --- .م6 (نظام لعبة الأحكام الجماعية) ---
-# ----------------------------------------------------
 @client.on(events.NewMessage(pattern=r"^\.م6$", outgoing=True))
 async def m6(event):
     await event.edit(
@@ -214,12 +212,11 @@ async def join_ahkam_game(event):
     user_id = sender.id
     first_name = sender.first_name or "عضو"
 
-    # الفحص إذا كان انضم سابقاً
     if any(p['id'] == user_id for p in GAME_PLAYERS):
         return await event.reply("⚠️ أنت منضم للعبة بالفعل!")
 
     if len(GAME_PLAYERS) >= 10:
-        return await event.reply("❌ اكتمل العدد الأقصى للاعبين (10 أعضاء)!")
+        return await event.reply("❌ اكتمل العدد الأقصى للالاعبين (10 أعضاء)!")
 
     GAME_PLAYERS.append({'id': user_id, 'name': first_name})
     await event.reply(f"✅ تم انضمام **[{first_name}](tg://user?id={user_id})** بنجاح! ({len(GAME_PLAYERS)}/10)")
@@ -233,7 +230,6 @@ async def draw_ahkam_game(event):
     if len(GAME_PLAYERS) < 2:
         return await event.edit(f"⚠️ يجب انضمام شخصين على الأقل لبدء القرعة! (العدد الحالي: {len(GAME_PLAYERS)})")
 
-    # اختيار اثنين عشوائياً بدون تكرار
     chosen = random.sample(GAME_PLAYERS, 2)
     hakim = chosen[0]
     mahkoum = chosen[1]
@@ -577,6 +573,14 @@ async def global_watcher(event):
         try: await event.reply(REPLY_MAP[event.raw_text])
         except: pass
 
-print(f"=== {SOURCE_TITLE} IS RUNNING SUCCESSFULLY ===")
-client.run_until_disconnected()
+# ----------------------------------------------------
+# 6. التشغيل التلقائي الصارم بدون طلب مدخلات (منع EOFError على Railway)
+# ----------------------------------------------------
+async def main():
+    await client.start()
+    print(f"=== {SOURCE_TITLE} IS RUNNING SUCCESSFULLY ===")
+    await client.run_until_disconnected()
+
+if __name__ == '__main__':
+    client.loop.run_until_complete(main())
 
