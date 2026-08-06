@@ -1002,31 +1002,67 @@ async def m20(event):
 async def promote_user(event):
     if not is_sudo(event): return
     if not event.is_reply or not event.is_group:
-        msg = "⚠️ بالرد في جروب."
+        msg = "⚠️ **رد على رسالة الشخص جوة الجروب عشان ترفعه مشرف!**"
         return await (event.edit(msg) if event.out else event.reply(msg))
+    
     r = await event.get_reply_message()
+    status_msg = await (event.edit("⏳ **جاري رفع العضو مشرف...**") if event.out else event.reply("⏳ **جاري رفع العضو مشرف...**"))
+    
     rights = ChatAdminRights(
-        post_messages=True, edit_messages=True, delete_messages=True,
-        ban_users=True, invite_users=True, pin_messages=True, add_admins=False
+        change_info=True,
+        post_messages=True,
+        edit_messages=True,
+        delete_messages=True,
+        ban_users=True,
+        invite_users=True,
+        pin_messages=True,
+        add_admins=False,
+        manage_call=True
     )
-    await client(EditAdminRequest(event.chat_id, r.sender_id, rights, custom_title="مشرف"))
-    text = f"👑 تم ترقية المستخدم: `{r.sender_id}` أدمن."
-    await (event.edit(text) if event.out else event.reply(text))
+    
+    try:
+        await client(EditAdminRequest(
+            channel=event.chat_id,
+            user_id=r.sender_id,
+            admin_rights=rights,
+            rank="مشرف"
+        ))
+        await status_msg.edit(f"👑 **تم ترقية المستخدم [`{r.sender_id}`] مشرف بنجاح!**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء الرفع (تأكد أنك مالك الجروب أو أدمن برتبة تضيف أدمنية):**\n`{e}`")
 
 @client.on(events.NewMessage(pattern=r"^\.تنزيل مشرف$"))
 async def demote_user(event):
     if not is_sudo(event): return
     if not event.is_reply or not event.is_group:
-        msg = "⚠️ بالرد في جروب."
+        msg = "⚠️ **رد على رسالة الشخص جوة الجروب عشان تنزله من الإشراف!**"
         return await (event.edit(msg) if event.out else event.reply(msg))
+    
     r = await event.get_reply_message()
+    status_msg = await (event.edit("⏳ **جاري تنزيل المشرف...**") if event.out else event.reply("⏳ **جاري تنزيل المشرف...**"))
+    
     rights = ChatAdminRights(
-        post_messages=False, edit_messages=False, delete_messages=False,
-        ban_users=False, invite_users=False, pin_messages=False, add_admins=False
+        change_info=False,
+        post_messages=False,
+        edit_messages=False,
+        delete_messages=False,
+        ban_users=False,
+        invite_users=False,
+        pin_messages=False,
+        add_admins=False,
+        manage_call=False
     )
-    await client(EditAdminRequest(event.chat_id, r.sender_id, rights, custom_title="عضو"))
-    text = f"📉 تم تنزيل المستخدم من الإشراف: `{r.sender_id}`"
-    await (event.edit(text) if event.out else event.reply(text))
+    
+    try:
+        await client(EditAdminRequest(
+            channel=event.chat_id,
+            user_id=r.sender_id,
+            admin_rights=rights,
+            rank=""
+        ))
+        await status_msg.edit(f"📉 **تم تنزيل المستخدم [`{r.sender_id}`] من الإشراف بنجاح!**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء التنزيل:**\n`{e}`")
 
 # --- م21 ---
 @client.on(events.NewMessage(pattern=r"^\.م21$"))
