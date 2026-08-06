@@ -34,7 +34,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
+SOURCE_TITLE = "🇵🇹  Portuguese source 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
@@ -94,9 +94,10 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.تفعيل الذاتيه` ➪ حفظ صور ميديا الخاص والتدمير الذاتي تلقائياً للمحفوظات
 • `.تعطيل الذاتيه` ➪ إيقاف حفظ الصور تلقائياً
 • `.سليب` ➪ تفعيل وضع النوم (يتعطل فور كتابتك لأي رسالة)
+• `.همسه` [الكلام] ➪ إرسال همسة سرية (بالرد أو بكتابة اليوزر)
 • `.م1` ➪ البحث والوسائط (`.بحث` ، `.صورة`)
 • `.م2` ➪ الوقت والتاريخ (`.الوقت` ، `.التاريخ`)
-• `.م3` ➪ إدارة الجروب (`.حظر` ، `.فك حظر` ، `.كتم` ، `.فك كتم`)
+• `.م3` ➪ إدارة الجروب والكتم (`.حظر` ، `.كتم` ، `.فك كتم`)
 • `.م4` ➪ الردود (`.رد [كلمة] = [رد]` ، `.مسح الردود`)
 • `.م5` ➪ التصفية والمسح (`.مسح [عدد]`)
 • `.م6` ➪ لعبة الأحكام (`.احكام` ، `.لعب` ، `.بدء` ، `.انهاء`)
@@ -118,7 +119,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م22` ➪ السبام والإنذار (`.بلاغ`)
 • `.م23` ➪ المحادثات الخاصة (`.كشف الخاص`)
 • `.م24` ➪ الصورة الشخصية (`.صورة البروفايل`)
-• `.م25` ➪ كتم الخاصة (`.كتم خاص` ، `.فك كتم خاص`)
+• `.م25` ➪ كتم الخاصة (`.كتمخاص` ، `.فك كتمخاص`)
 • `.م26` ➪ حفظ الميديا يدوي (`.حفظ`)
 • `.م27` ➪ الرتب والاصلاحات (`.رتبتي` ، `.رتبته`)
 • `.م28` ➪ النظام (`.ريستارت`)
@@ -179,8 +180,40 @@ async def list_developers(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 6. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك)
+# 6. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك - الهمسة)
 # ----------------------------------------------------
+
+@client.on(events.NewMessage(pattern=r"^\.همسه(?:\s+(.+))?$"))
+async def whisper_cmd(event):
+    if not is_sudo(event): return
+    input_text = event.pattern_match.group(1)
+    target = None
+    whisper_text = ""
+
+    if event.is_reply:
+        reply = await event.get_reply_message()
+        target_user = await client.get_entity(reply.sender_id)
+        target = f"@{target_user.username}" if target_user.username else str(target_user.id)
+        whisper_text = input_text if input_text else ""
+    elif input_text:
+        parts = input_text.split(maxsplit=1)
+        if len(parts) >= 2 and (parts[0].startswith("@") or parts[0].isdigit()):
+            target = parts[0]
+            whisper_text = parts[1]
+
+    if not target or not whisper_text:
+        msg = "⚠️ **طريقة استخدام أمر الهمسة:**\n• بالرد على الشخص: `.همسه الكلام`\n• أو بكتابة المعرف: `.همسه @username الكلام`"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    try:
+        await event.delete()
+        results = await client.inline_query('@whisperbot', f"{target} {whisper_text}")
+        if results:
+            await results[0].click(event.chat_id)
+        else:
+            await client.send_message(event.chat_id, "❌ **تعذر إنشاء الهمسة عبر البوت.**")
+    except Exception as e:
+        await client.send_message(event.chat_id, f"❌ **حدث خطأ أثناء إرسال الهمسة:** {e}")
 
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الحمايه$"))
 async def enable_pm_guard(event):
@@ -370,11 +403,11 @@ async def get_date(event):
     text = f"📅 **التاريخ النهاردة:** `{d}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م3 ---
+# --- م3 (تعديل كتم بدون رد في الخاص، وبالرد في الجروبات/القنوات) ---
 @client.on(events.NewMessage(pattern=r"^\.م3$"))
 async def m3(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر إدارة الجروب (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بالرد)\n• `.فك كتم` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر إدارة الجروب والكتم (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بدون رد في الخاص، وبالرد في الجروبات)\n• `.فك كتم`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حظر$"))
@@ -402,27 +435,44 @@ async def unban_user(event):
 @client.on(events.NewMessage(pattern=r"^\.كتم$"))
 async def mute_user(event):
     if not is_sudo(event): return
-    if not event.is_reply:
-        msg = "⚠️ رد على العضو الأول."
+
+    if event.is_private:
+        MUTED_PMS.add(event.chat_id)
+        msg = "🔇 **تم كتم الشات الخاص ده بنجاح!**"
         return await (event.edit(msg) if event.out else event.reply(msg))
-    r = await event.get_reply_message()
-    MUTED_USERS.setdefault(event.chat_id, set()).add(r.sender_id)
-    msg = f"🔇 تم كتم العضو: `{r.sender_id}`"
-    await (event.edit(msg) if event.out else event.reply(msg))
+
+    elif event.is_group or event.is_channel:
+        if not event.is_reply:
+            msg = "⚠️ **رد على العضو عشان تكتمه جوة الجروب أو القناة!**"
+            return await (event.edit(msg) if event.out else event.reply(msg))
+        r = await event.get_reply_message()
+        MUTED_USERS.setdefault(event.chat_id, set()).add(r.sender_id)
+        msg = f"🔇 **تم كتم العضو:** `{r.sender_id}`"
+        return await (event.edit(msg) if event.out else event.reply(msg))
 
 @client.on(events.NewMessage(pattern=r"^\.فك كتم$"))
 async def unmute_user(event):
     if not is_sudo(event): return
-    if not event.is_reply:
-        msg = "⚠️ رد على العضو الأول."
+
+    if event.is_private:
+        if event.chat_id in MUTED_PMS:
+            MUTED_PMS.remove(event.chat_id)
+            msg = "🔊 **تم فك الكتم عن المحادثة الخاصة دي!**"
+        else:
+            msg = "⚠️ **المحادثة دي مش مكتومة أصلاً.**"
         return await (event.edit(msg) if event.out else event.reply(msg))
-    r = await event.get_reply_message()
-    if event.chat_id in MUTED_USERS and r.sender_id in MUTED_USERS[event.chat_id]:
-        MUTED_USERS[event.chat_id].remove(r.sender_id)
-        msg = f"🔊 تم فك كتم العضو: `{r.sender_id}`"
-    else:
-        msg = "⚠️ العضو ده مش مكتوم أصلاً."
-    await (event.edit(msg) if event.out else event.reply(msg))
+
+    elif event.is_group or event.is_channel:
+        if not event.is_reply:
+            msg = "⚠️ **رد على العضو عشان تفك كتمه!**"
+            return await (event.edit(msg) if event.out else event.reply(msg))
+        r = await event.get_reply_message()
+        if event.chat_id in MUTED_USERS and r.sender_id in MUTED_USERS[event.chat_id]:
+            MUTED_USERS[event.chat_id].remove(r.sender_id)
+            msg = f"🔊 **تم فك كتم العضو:** `{r.sender_id}`"
+        else:
+            msg = "⚠️ **العضو ده مش مكتوم أصلاً.**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
 
 # --- م4 ---
 @client.on(events.NewMessage(pattern=r"^\.م4$"))
@@ -954,7 +1004,7 @@ async def demote_user(event):
     text = f"📉 تم تنزيل المستخدم من الإشراف: `{r.sender_id}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م21 (أوامر فتح وإغلاق الكول / المكالمات الصوتية) ---
+# --- م21 (أوامر فتح وإغلاق الكول) ---
 @client.on(events.NewMessage(pattern=r"^\.م21$"))
 async def m21(event):
     if not is_sudo(event): return
@@ -1065,21 +1115,21 @@ async def set_profile_photo(event):
 @client.on(events.NewMessage(pattern=r"^\.م25$"))
 async def m25(event):
     if not is_sudo(event): return
-    text = f"📌 **كتم المحادثات الخاصة (`.م25`):**\n• `.كتم خاص` (في الخاص أو بالرد)\n• `.فك كتم خاص`\n\n{SOURCE_TITLE}"
+    text = f"📌 **كتم المحادثات الخاصة المباشر (`.م25`):**\n• `.كتمخاص` (في الخاص دون الحاجة للرد)\n• `.فك كتمخاص`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
-@client.on(events.NewMessage(pattern=r"^\.كتم خاص$"))
+@client.on(events.NewMessage(pattern=r"^\.كتمخاص$"))
 async def mute_pm(event):
     if not is_sudo(event): return
     target_id = event.chat_id if event.is_private else ( (await event.get_reply_message()).sender_id if event.is_reply else None )
     if not target_id:
-        msg = "⚠️ في الخاص أو بالرد على الشخص."
+        msg = "⚠️ استخدم الأمر في شات الخاص مباشر أو بالرد."
         return await (event.edit(msg) if event.out else event.reply(msg))
     MUTED_PMS.add(target_id)
     text = f"🔇 تم كتم الخاص مع الشخص ده: `{target_id}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-@client.on(events.NewMessage(pattern=r"^\.فك كتم خاص$"))
+@client.on(events.NewMessage(pattern=r"^\.فك كتمخاص$"))
 async def unmute_pm(event):
     if not is_sudo(event): return
     target_id = event.chat_id if event.is_private else ( (await event.get_reply_message()).sender_id if event.is_reply else None )
