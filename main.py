@@ -90,6 +90,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت (7 تحذيرات ثم بلوك)
 • `.تعطيل الحمايه` ➪ إيقاف حماية الخاص
 • `.قبول` ➪ السماح لشخص بالحديث في الخاص بدون تحذيرات
+• `.رفض` ➪ إلغاء القبول وإرجاع التحذيرات للشخص في الخاص
 • `.بلوك` ➪ حظر المستخدم وحظره من التواصل
 • `.تفعيل الذاتيه` ➪ حفظ صور ميديا الخاص والتدمير الذاتي تلقائياً للمحفوظات
 • `.تعطيل الذاتيه` ➪ إيقاف حفظ الصور تلقائياً
@@ -253,6 +254,29 @@ async def approve_user(event):
     msg = f"✅ **تم قبول المستخدم [{target_id}] ومسموحله يكلمك في الخاص من غير تحذيرات.**"
     await (event.edit(msg) if event.out else event.reply(msg))
 
+@client.on(events.NewMessage(pattern=r"^\.رفض$"))
+async def decline_user(event):
+    global APPROVED_USERS
+    if not is_sudo(event): return
+    target_id = None
+    if event.is_private:
+        target_id = event.chat_id
+    elif event.is_reply:
+        reply = await event.get_reply_message()
+        target_id = reply.sender_id
+
+    if not target_id:
+        msg = "⚠️ **استخدم الأمر بالرد على الشخص أو جوة شات الخاص بتاعه!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    if target_id in APPROVED_USERS:
+        APPROVED_USERS.remove(target_id)
+        msg = f"❌ **تم إلغاء قبول المستخدم [{target_id}] وأصبح غير مسموح له بالحديث في الخاص.**"
+    else:
+        msg = f"⚠️ **المستخدم [{target_id}] غير مقبول من الأساس.**"
+
+    await (event.edit(msg) if event.out else event.reply(msg))
+
 @client.on(events.NewMessage(pattern=r"^\.بلوك$"))
 async def block_user_cmd(event):
     if not is_sudo(event): return
@@ -403,7 +427,7 @@ async def get_date(event):
     text = f"📅 **التاريخ النهاردة:** `{d}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م3 (تعديل كتم بدون رد في الخاص، وبالرد في الجروبات/القنوات) ---
+# --- م3 ---
 @client.on(events.NewMessage(pattern=r"^\.م3$"))
 async def m3(event):
     if not is_sudo(event): return
@@ -1004,7 +1028,7 @@ async def demote_user(event):
     text = f"📉 تم تنزيل المستخدم من الإشراف: `{r.sender_id}`"
     await (event.edit(text) if event.out else event.reply(text))
 
-# --- م21 (أوامر فتح وإغلاق الكول) ---
+# --- م21 ---
 @client.on(events.NewMessage(pattern=r"^\.م21$"))
 async def m21(event):
     if not is_sudo(event): return
