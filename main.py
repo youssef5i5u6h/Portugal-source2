@@ -28,8 +28,8 @@ from telethon.errors import (
 # ----------------------------------------------------
 # 1. إعدادات الجلسة والحساب
 # ----------------------------------------------------
-API_ID = 24576280
-API_HASH = "2d331fea63e2dfeb0d2c2cf71a9a0cc9"
+API_ID = int(os.getenv("API_ID", "24576280"))
+API_HASH = os.getenv("API_HASH", "2d331fea63e2dfeb0d2c2cf71a9a0cc9")
 STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offBYF9yOSPs4eJYlvYFznWk_-xAkKxb3jHUecIxUaObuXYs4HPpfOiE45pYlIGmNToeZtpy8K6OhNW26h-HbG3MGhir-yrRgb8bufvixbF-XZ8lBkyJZ0OOahRl9l3SUYQhDdzptbTrSy2I4LDOvt96bu4yEV64owrtHKlE1KneUkdaKdhP7wM-1nAjOLvn1EbaUKGyEVfblvq2CBA-WepXGSzqa6Qvp0sG0bf0cPEZOcLPXM1NZEvRxrbcBuuh4u9bf-NGQtJaD6_S_3pb-9JVvcNl2wJjcGnfc5lV33XDmSKSA7iOfq3PujNg1oxX0E=")
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
@@ -191,7 +191,6 @@ async def taflesh_cmd(event):
         msg = "⚠️ **الأمر ده بيشتغل جوة الجروبات بس!**"
         return await (event.edit(msg) if event.out else event.reply(msg))
 
-    # التحقق من الصلاحية: المطور أو شخص يملك صلاحية حظر الأعضاء
     perms = await client.get_permissions(event.chat_id, event.sender_id)
     if not (is_sudo(event) or perms.is_creator or perms.ban_users):
         msg = "⚠️ **معندكش صلاحية حظر الأعضاء لاستخدام الأمر ده!**"
@@ -226,7 +225,7 @@ async def taflesh_cmd(event):
     )
 
 # ----------------------------------------------------
-# 7. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك - الهمسة)
+# 7. الأوامر الخاصة
 # ----------------------------------------------------
 
 @client.on(events.NewMessage(pattern=r"^\.همسه(?:\s+(.+))?$"))
@@ -257,7 +256,7 @@ async def whisper_cmd(event):
         if results:
             await results[0].click(event.chat_id)
         else:
-            await client.send_message(event.chat_id, "❌ **تعذر إنشاء الهمسة عبر البوت.**")
+            await client.send_message(event.chat_id, "❌ **تعذر إنشاء الهمسة (البوت لم يرجع نتائج).**")
     except Exception as e:
         await client.send_message(event.chat_id, f"❌ **حدث خطأ أثناء إرسال الهمسة:** {e}")
 
@@ -337,7 +336,7 @@ async def block_user_cmd(event):
         return await (event.edit(msg) if event.out else event.reply(msg))
 
     try:
-        await (event.edit("تم حظر ال 🦓") if event.out else event.reply("تم حظر ال 🦓"))
+        await (event.edit("تم حظر المستخدم 🚫") if event.out else event.reply("تم حظر المستخدم 🚫"))
         await client(BlockRequest(target_id))
     except Exception as e:
         print(f"خطأ في تنفيذ البلوك: {e}")
@@ -372,14 +371,16 @@ async def enable_sleep_mode(event):
 # ----------------------------------------------------
 async def time_name_loop():
     global TIME_NAME_ACTIVE, ORIGINAL_NAME
-    while TIME_NAME_ACTIVE:
-        try:
+    try:
+        while TIME_NAME_ACTIVE:
             current_time = datetime.datetime.now().strftime("%I:%M")
             new_name = f"{ORIGINAL_NAME} | {current_time}"
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
-        except Exception as e:
-            print(f"خطأ في الوقت: {e}")
-        await asyncio.sleep(60)
+            await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"خطأ في الوقت: {e}")
 
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الوقت$"))
 async def enable_time_name(event):
@@ -556,7 +557,7 @@ async def add_reply(event):
     w = event.pattern_match.group(1).strip()
     a = event.pattern_match.group(2).strip()
     REPLY_MAP[w] = a
-    text = f"✅ تم إضافة الرد يا باشا:\n`{w}` ➔ `{a}`"
+    text = f"✅ تم إضافة الرد:\n`{w}` ➔ `{a}`"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.مسح الردود$"))
@@ -606,7 +607,7 @@ async def join_ahkam_game(event):
     global GAME_ACTIVE, GAME_PLAYERS, GAME_CHAT_ID
     if not GAME_ACTIVE or event.chat_id != GAME_CHAT_ID: return
     sender = await event.get_sender()
-    if any(p['id'] == sender.id for p in GAME_PLAYERS): return await event.reply("⚠️ انت منضم للعبة بالفعل يا قلبي!")
+    if any(p['id'] == sender.id for p in GAME_PLAYERS): return await event.reply("⚠️ انت منضم للعبة بالفعل!")
     if len(GAME_PLAYERS) >= 10: return await event.reply("❌ اكتمل العدد خلاص!")
     GAME_PLAYERS.append({'id': sender.id, 'name': sender.first_name or "عضو"})
     await event.reply(f"✅ تم دخول [{sender.first_name}](tg://user?id={sender.id}) اللعبة!")
@@ -824,7 +825,7 @@ async def join_chat(event):
         else:
             username = link.split("/")[-1].replace("@", "")
             await client(JoinChannelRequest(username))
-        await status_msg.edit("✅ **تم الانضمام بنجاح يا باشا!**")
+        await status_msg.edit("✅ **تم الانضمام بنجاح!**")
     except Exception as e:
         await status_msg.edit(f"❌ **مش عارف أدخل:** {e}")
 
@@ -889,7 +890,7 @@ async def add_members_zedthon(event):
     failed_count = 0
     privacy_count = 0
 
-    await status_msg.edit(f"📊 **إجمالي الأعضاء:** `{len(participants)}`\n🚀 **بدأنا نقل الأعضاء بطريقة زدثون...**")
+    await status_msg.edit(f"📊 **إجمالي الأعضاء:** `{len(participants)}`\n🚀 **بدأنا نقل الأعضاء...**")
 
     for user in participants:
         if user.deleted or user.bot or user.is_self:
@@ -1074,7 +1075,7 @@ async def promote_user(event):
         ))
         await status_msg.edit(f"👑 **تم ترقية المستخدم [`{r.sender_id}`] مشرف بنجاح!**")
     except Exception as e:
-        await status_msg.edit(f"❌ **حصل مشكلة أثناء الرفع (تأكد أنك مالك الجروب أو أدمن برتبة تضيف أدمنية):**\n`{e}`")
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء الرفع:**\n`{e}`")
 
 @client.on(events.NewMessage(pattern=r"^\.تنزيل مشرف$"))
 async def demote_user(event):
@@ -1128,7 +1129,7 @@ async def start_group_call(event):
         await client(CreateGroupCallRequest(peer=event.chat_id, random_id=random.randint(10000, 99999)))
         await status_msg.edit("🎙️ **تم فتح المحادثة الصوتية (الكول) بنجاح!**")
     except Exception as e:
-        await status_msg.edit(f"❌ **حصل مشكلة أثناء فتح الكول (تأكد أنك أدمن وبصلاحيات كاملة):**\n`{e}`")
+        await status_msg.edit(f"❌ **حصل مشكلة أثناء فتح الكول:**\n`{e}`")
 
 @client.on(events.NewMessage(pattern=r"^\.اقفل الكول$"))
 async def stop_group_call(event):
@@ -1144,7 +1145,7 @@ async def stop_group_call(event):
         else:
             full_chat = await client(GetFullChatRequest(event.chat_id))
 
-        call = full_chat.full_chat.call
+        call = getattr(full_chat.full_chat, 'call', None)
         if not call:
             return await status_msg.edit("⚠️ **مفيش كول مفتوح حالياً في المحادثة دي عشان أقفله!**")
 
@@ -1266,7 +1267,7 @@ async def save_self_destruct(event):
     file_path = await r.download_media()
     await client.send_file("me", file_path, caption=f"📥 **تم الحفظ في المحفوظات.**\n{SOURCE_TITLE}")
     if os.path.exists(file_path): os.remove(file_path)
-    await status_msg.edit("✅ **تم البعث للرسائل المحفوظة (Saved Messages)!**")
+    await status_msg.edit("✅ **تم الإرسال للرسائل المحفوظة (Saved Messages)!**")
 
 # --- م27 ---
 @client.on(events.NewMessage(pattern=r"^\.م27$"))
@@ -1477,5 +1478,8 @@ async def main():
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
-    client.loop.run_until_complete(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("🛑 تم إيقاف التشغيل.")
 
