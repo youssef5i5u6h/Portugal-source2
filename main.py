@@ -18,7 +18,7 @@ from telethon.tl.functions.phone import (
     CreateGroupCallRequest, DiscardGroupCallRequest
 )
 from telethon.tl.functions.contacts import BlockRequest
-from telethon.tl.types import ChatBannedRights, ChatAdminRights
+from telethon.tl.types import ChatBannedRights, ChatAdminRights, ChannelParticipantsKicked
 from telethon.sessions import StringSession
 from telethon.errors import (
     UserPrivacyRestrictedError, ChatAdminRequiredError, UserNotMutualContactError,
@@ -85,34 +85,40 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.رفع مطور` ➪ رفع مطور (بالرد على الشخص أو تحويل منه)
 • `.تنزيل مطور` ➪ تنزيل مطور (بالرد أو تحويل)
 • `.المطورين` ➪ عرض قائمة المطورين
-• `.تفليش` ➪ تصفية وطرد أعضاء الجروب (للمطور أو من يملك صلاحية الحظر)
+• `.تفليش` ➪ تصفية وطرد أعضاء الجروب
 • `.تفعيل الوقت` ➪ إظهار الوقت بجانب اسمك
 • `.تعطيل الوقت` ➪ إيقاف الوقت ورجوع اسمك الاصلي
-• `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت (7 تحذيرات ثم بلوك)
+• `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت
 • `.تعطيل الحمايه` ➪ إيقاف حماية الخاص
 • `.قبول` ➪ السماح لشخص بالحديث في الخاص بدون تحذيرات
-• `.رفض` ➪ إلغاء القبول وإرجاع التحذيرات للشخص في الخاص
-• `.بلوك` ➪ حظر المستخدم وحظره من التواصل
-• `.تفعيل الذاتيه` ➪ حفظ صور ميديا الخاص والتدمير الذاتي تلقائياً للمحفوظات
+• `.رفض` ➪ إلغاء القبول وإرجاع التحذيرات للشخص
+• `.بلوك` ➪ حظر المستخدم
+• `.حفظ الذاتية` ➪ حفظ صورة/فيديو ذاتية التدمير للرسائل المحفوظة
+• `.تفعيل الذاتيه` ➪ حفظ ميديا الخاص والتدمير الذاتي تلقائياً
 • `.تعطيل الذاتيه` ➪ إيقاف حفظ الصور تلقائياً
-• `.سليب` ➪ تفعيل وضع النوم (يتعطل فور كتابتك لأي رسالة)
-• `.همسه` [الكلام] ➪ إرسال همسة سرية (بالرد أو بكتابة اليوزر)
+• `.سليب` ➪ تفعيل وضع النوم
+• `.همسه` [الكلام] ➪ إرسال همسة سرية
+• `.طرد عام` ➪ طرد شخص من كل الجروبات المشتركة (بالرد)
+• `.مسح المحظورين` ➪ فك الحظر عن كل المحظورين في الجروب
+• `.مسح المحظورين عام` ➪ تفريغ قائمة الحظر العام
+• `.مسح المكتومين` ➪ فك الكتم عن قائمة المكتومين بالجروب
+• `.مسح المكتومين عام` ➪ تفريغ قائمة الكتم العام
 • `.م1` ➪ البحث والوسائط (`.بحث` ، `.صورة`)
 • `.م2` ➪ الوقت والتاريخ (`.الوقت` ، `.التاريخ`)
-• `.م3` ➪ إدارة الجروب والكتم (`.حظر` ، `.كتم` ، `.فك كتم` ، `.تفليش`)
+• `.م3` ➪ إدارة الجروب والكتم (`.حظر` ، `.كتم` ، `.فك كتم` ، `.مسح المحظورين` ، `.مسح المكتومين`)
 • `.م4` ➪ الردود (`.رد [كلمة] = [رد]` ، `.مسح الردود`)
 • `.م5` ➪ التصفية والمسح (`.مسح [عدد]`)
 • `.م6` ➪ لعبة الأحكام (`.احكام` ، `.لعب` ، `.بدء` ، `.انهاء`)
 • `.م7` ➪ الحساب والآيدي (`.ايدي` ، `.فحص`)
-• `.م8` ➪ الحظر العام (`.حظر عام` ، `.الغاء العام`)
-• `.م9` ➪ الكتم العام (`.كتم عام` ، `.الغاء كتم عام`)
+• `.م8` ➪ الحظر العام (`.حظر عام` ، `.الغاء العام` ، `.مسح المحظورين عام` ، `.طرد عام`)
+• `.م9` ➪ الكتم العام (`.كتم عام` ، `.الغاء كتم عام` ، `.مسح المكتومين عام`)
 • `.م10` ➪ روابط الجروبات (`.الرابط`)
 • `.م11` ➪ تغيير الاسم (`.اسم [الاسم]`)
 • `.م12` ➪ البايو والوصف (`.بايو [الوصف]`)
 • `.م13` ➪ حظر الكلمات (`.منع [كلمة]` ، `.قائمة المنع`)
 • `.م14` ➪ المغادرة والانضمام (`.مغادرة` ، `.انضمام [رابط]`)
 • `.م15` ➪ إنشاء الجروبات (`.انشاء جروب [الاسم]`)
-• `.م16` ➪ الإضافة والحذف زدثون (`.ضيف [رابط]` ، `.حذف الجهات [رابط]`)
+• `.م16` ➪ الإضافة والحذف (`.ضيف [رابط]` ، `.حذف الجهات [رابط]`)
 • `.م17` ➪ الحسابات المغلقة (`.تنظيف المغلقة`)
 • `.م18` ➪ طرد البوتات (`.طرد البوتات`)
 • `.م19` ➪ التثبيت (`.تثبيت` ، `.الغاء التثبيت`)
@@ -122,7 +128,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م23` ➪ المحادثات الخاصة (`.كشف الخاص`)
 • `.م24` ➪ الصورة الشخصية (`.صورة البروفايل`)
 • `.م25` ➪ كتم الخاصة (`.كتمخاص` ، `.فك كتمخاص`)
-• `.م26` ➪ حفظ الميديا يدوي (`.حفظ`)
+• `.م26` ➪ حفظ الميديا يدوي (`.حفظ` ، `.حفظ الذاتية`)
 • `.م27` ➪ الرتب والاصلاحات (`.رتبتي` ، `.رتبته`)
 • `.م28` ➪ النظام (`.ريستارت`)
 • `.م29` ➪ السرعة والاستجابة (`.بنج`)
@@ -477,7 +483,7 @@ async def get_date(event):
 @client.on(events.NewMessage(pattern=r"^\.م3$"))
 async def m3(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر إدارة الجروب والكتم (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بدون رد في الخاص، وبالرد في الجروبات)\n• `.فك كتم`\n• `.تفليش` (تصفية وطرد الأعضاء)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر إدارة الجروب والكتم (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بالرد)\n• `.فك كتم`\n• `.مسح المحظورين`\n• `.مسح المكتومين`\n• `.تفليش` (تصفية الأعضاء)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حظر$"))
@@ -501,6 +507,28 @@ async def unban_user(event):
     await client(EditBannedRequest(event.chat_id, r.sender_id, ChatBannedRights(until_date=None, view_messages=False)))
     msg = f"✅ تم فك حظر العضو: `{r.sender_id}`"
     await (event.edit(msg) if event.out else event.reply(msg))
+
+@client.on(events.NewMessage(pattern=r"^\.مسح المحظورين$"))
+async def clear_banned_group(event):
+    if not is_sudo(event): return
+    if not event.is_group:
+        msg = "⚠️ **الأمر ده بيشتغل جوة الجروبات بس!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    status_msg = await (event.edit("⏳ **جاري فك الحظر عن جميع المحظورين في الجروب...**") if event.out else event.reply("⏳ **جاري فك الحظر عن جميع المحظورين في الجروب...**"))
+    unbanned_count = 0
+    
+    try:
+        async for user in client.iter_participants(event.chat_id, filter=ChannelParticipantsKicked):
+            try:
+                await client(EditBannedRequest(event.chat_id, user.id, ChatBannedRights(until_date=None, view_messages=False)))
+                unbanned_count += 1
+                await asyncio.sleep(0.1)
+            except Exception:
+                pass
+        await status_msg.edit(f"✅ **تم مسح قائمة المحظورين وفك الحظر عن `{unbanned_count}` عضو!**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حدث خطأ أثناء مسح المحظورين:** {e}")
 
 @client.on(events.NewMessage(pattern=r"^\.كتم$"))
 async def mute_user(event):
@@ -543,6 +571,18 @@ async def unmute_user(event):
         else:
             msg = "⚠️ **العضو ده مش مكتوم أصلاً.**"
         return await (event.edit(msg) if event.out else event.reply(msg))
+
+@client.on(events.NewMessage(pattern=r"^\.مسح المكتومين$"))
+async def clear_muted_group(event):
+    if not is_sudo(event): return
+    if event.is_private:
+        MUTED_PMS.clear()
+        msg = "🗑️ **تم مسح كل المحادثات المكتومة في الخاص!**"
+    else:
+        if event.chat_id in MUTED_USERS:
+            MUTED_USERS[event.chat_id].clear()
+        msg = "🗑️ **تم مسح قائمة المكتومين في هذا الجروب بنجاح!**"
+    await (event.edit(msg) if event.out else event.reply(msg))
 
 # --- م4 ---
 @client.on(events.NewMessage(pattern=r"^\.م4$"))
@@ -668,7 +708,7 @@ async def inspect_user(event):
 @client.on(events.NewMessage(pattern=r"^\.م8$"))
 async def m8(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر الحظر العام (`.م8`):**\n• `.حظر عام` (بالرد)\n• `.الغاء العام` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر الحظر العام (`.م8`):**\n• `.حظر عام` (بالرد)\n• `.الغاء العام` (بالرد)\n• `.طرد عام` (طرد الشخص من كل الجروبات)\n• `.مسح المحظورين عام`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حظر عام$"))
@@ -696,11 +736,43 @@ async def ungban_user(event):
         text = "⚠️ الشخص ده مش محظور عام أصلاً."
     await (event.edit(text) if event.out else event.reply(text))
 
+@client.on(events.NewMessage(pattern=r"^\.مسح المحظورين عام$"))
+async def clear_gban_list(event):
+    if not is_sudo(event): return
+    GBAN_SET.clear()
+    msg = "🗑️ **تم مسح جميع المحظورين عام بنجاح!**"
+    await (event.edit(msg) if event.out else event.reply(msg))
+
+@client.on(events.NewMessage(pattern=r"^\.طرد عام$"))
+async def gkick_user(event):
+    if not is_sudo(event): return
+    if not event.is_reply:
+        msg = "⚠️ **رد على الشخص عشان تطرده عام من الجروبات!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+    
+    r = await event.get_reply_message()
+    target_id = r.sender_id
+    status_msg = await (event.edit("⏳ **جاري طرد المستخدم من جميع الجروبات...**") if event.out else event.reply("⏳ **جاري طرد المستخدم من جميع الجروبات...**"))
+    
+    kicked_chats = 0
+    dialogs = await client.get_dialogs()
+    
+    for d in dialogs:
+        if d.is_group or d.is_channel:
+            try:
+                await client.kick_participant(d.id, target_id)
+                kicked_chats += 1
+                await asyncio.sleep(0.2)
+            except Exception:
+                pass
+                
+    await status_msg.edit(f"💥 **تم طرد المستخدم [`{target_id}`] من `{kicked_chats}` جروب/محادثة!**")
+
 # --- م9 ---
 @client.on(events.NewMessage(pattern=r"^\.م9$"))
 async def m9(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر الكتم العام (`.م9`):**\n• `.كتم عام` (بالرد)\n• `.الغاء كتم عام` (بالرد)\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر الكتم العام (`.م9`):**\n• `.كتم عام` (بالرد)\n• `.الغاء كتم عام` (بالرد)\n• `.مسح المكتومين عام`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.كتم عام$"))
@@ -727,6 +799,13 @@ async def ungmute_user(event):
     else:
         text = "⚠️ الشخص ده مش مكتوم عام أصلاً."
     await (event.edit(text) if event.out else event.reply(text))
+
+@client.on(events.NewMessage(pattern=r"^\.مسح المكتومين عام$"))
+async def clear_gmute_list(event):
+    if not is_sudo(event): return
+    GMUTE_SET.clear()
+    msg = "🗑️ **تم مسح جميع المكتومين عام بنجاح!**"
+    await (event.edit(msg) if event.out else event.reply(msg))
 
 # --- م10 ---
 @client.on(events.NewMessage(pattern=r"^\.م10$"))
@@ -1250,11 +1329,11 @@ async def unmute_pm(event):
 @client.on(events.NewMessage(pattern=r"^\.م26$"))
 async def m26(event):
     if not is_sudo(event): return
-    text = f"📌 **حفظ الميديا (`.م26`):**\n• `.حفظ` (بالرد على صورة أو فيديو مؤقت)\n\n{SOURCE_TITLE}"
+    text = f"📌 **حفظ الميديا والذاتية (`.م26`):**\n• `.حفظ` (بالرد على ميديا عادي)\n• `.حفظ الذاتية` (بالرد على صورة/فيديو ذاتي التدمير)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حفظ$"))
-async def save_self_destruct(event):
+async def save_media_cmd(event):
     if not is_sudo(event): return
     if not event.is_reply:
         msg = "⚠️ بالرد على الصورة أو الفيديو."
@@ -1268,6 +1347,30 @@ async def save_self_destruct(event):
     await client.send_file("me", file_path, caption=f"📥 **تم الحفظ في المحفوظات.**\n{SOURCE_TITLE}")
     if os.path.exists(file_path): os.remove(file_path)
     await status_msg.edit("✅ **تم الإرسال للرسائل المحفوظة (Saved Messages)!**")
+
+@client.on(events.NewMessage(pattern=r"^\.(حفظ الذاتيه|ذاتيه|حفظ الذاتية)$"))
+async def save_self_destruct_media(event):
+    if not is_sudo(event): return
+    if not event.is_reply:
+        msg = "⚠️ **رد على الصورة أو الفيديو ذاتي التدمير!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+    r = await event.get_reply_message()
+    if not (r.photo or r.video or r.media):
+        msg = "⚠️ **الرسالة المردود عليها مفيهاش ميديا!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+    
+    status_msg = await (event.edit("⏳ **جاري تحميل الميديا ذاتية التدمير...**") if event.out else event.reply("⏳ **جاري تحميل الميديا ذاتية التدمير...**"))
+    try:
+        file_path = await client.download_media(r)
+        if file_path:
+            await client.send_file("me", file_path, caption=f"📥 **تم حفظ الميديا ذاتية التدمير بنجاح!**\n{SOURCE_TITLE}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            await status_msg.edit("✅ **تم حفظ الصورة/الفيديو ذاتي التدمير وحفظها في الرسائل المحفوظة!**")
+        else:
+            await status_msg.edit("❌ **فشل تحميل الميديا.**")
+    except Exception as e:
+        await status_msg.edit(f"❌ **حدث خطأ أثناء حفظ الذاتية:** {e}")
 
 # --- م27 ---
 @client.on(events.NewMessage(pattern=r"^\.م27$"))
