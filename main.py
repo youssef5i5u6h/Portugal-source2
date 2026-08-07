@@ -34,7 +34,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹  Portuguese source 🇵🇹"
+SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
@@ -85,6 +85,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.رفع مطور` ➪ رفع مطور (بالرد على الشخص أو تحويل منه)
 • `.تنزيل مطور` ➪ تنزيل مطور (بالرد أو تحويل)
 • `.المطورين` ➪ عرض قائمة المطورين
+• `.تفليش` ➪ تصفية وطرد أعضاء الجروب (للمطور أو من يملك صلاحية الحظر)
 • `.تفعيل الوقت` ➪ إظهار الوقت بجانب اسمك
 • `.تعطيل الوقت` ➪ إيقاف الوقت ورجوع اسمك الاصلي
 • `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت (7 تحذيرات ثم بلوك)
@@ -98,7 +99,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.همسه` [الكلام] ➪ إرسال همسة سرية (بالرد أو بكتابة اليوزر)
 • `.م1` ➪ البحث والوسائط (`.بحث` ، `.صورة`)
 • `.م2` ➪ الوقت والتاريخ (`.الوقت` ، `.التاريخ`)
-• `.م3` ➪ إدارة الجروب والكتم (`.حظر` ، `.كتم` ، `.فك كتم`)
+• `.م3` ➪ إدارة الجروب والكتم (`.حظر` ، `.كتم` ، `.فك كتم` ، `.تفليش`)
 • `.م4` ➪ الردود (`.رد [كلمة] = [رد]` ، `.مسح الردود`)
 • `.م5` ➪ التصفية والمسح (`.مسح [عدد]`)
 • `.م6` ➪ لعبة الأحكام (`.احكام` ، `.لعب` ، `.بدء` ، `.انهاء`)
@@ -181,7 +182,51 @@ async def list_developers(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 6. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك - الهمسة)
+# 6. أمر تفليش الجروب (التصفية السريعة)
+# ----------------------------------------------------
+
+@client.on(events.NewMessage(pattern=r"^\.تفليش$"))
+async def taflesh_cmd(event):
+    if not event.is_group:
+        msg = "⚠️ **الأمر ده بيشتغل جوة الجروبات بس!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    # التحقق من الصلاحية: المطور أو شخص يملك صلاحية حظر الأعضاء
+    perms = await client.get_permissions(event.chat_id, event.sender_id)
+    if not (is_sudo(event) or perms.is_creator or perms.ban_users):
+        msg = "⚠️ **معندكش صلاحية حظر الأعضاء لاستخدام الأمر ده!**"
+        return await (event.edit(msg) if event.out else event.reply(msg))
+
+    status_msg = await (event.edit("⚡ **جاري تفليش الجروب وتصفية الاعضاء...**") if event.out else event.reply("⚡ **جاري تفليش الجروب وتصفية الاعضاء...**"))
+
+    kicked_count = 0
+    failed_count = 0
+
+    async for user in client.iter_participants(event.chat_id):
+        if user.bot:
+            continue
+
+        try:
+            user_perm = await client.get_permissions(event.chat_id, user.id)
+            if user_perm.is_admin or user_perm.is_creator:
+                continue
+
+            await client.kick_participant(event.chat_id, user.id)
+            kicked_count += 1
+            await asyncio.sleep(0.05)
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
+        except Exception:
+            failed_count += 1
+
+    await status_msg.edit(
+        f"💥 **تم الانتهاء من تفليش الجروب!**\n\n"
+        f"👥 **تم طرد:** `{kicked_count}`\n"
+        f"❌ **فشل طرد:** `{failed_count}`"
+    )
+
+# ----------------------------------------------------
+# 7. الأوامر الخاصة (الحماية - الذاتية - السليب - البلوك - الهمسة)
 # ----------------------------------------------------
 
 @client.on(events.NewMessage(pattern=r"^\.همسه(?:\s+(.+))?$"))
@@ -251,7 +296,7 @@ async def approve_user(event):
     if target_id in PM_WARNINGS:
         del PM_WARNINGS[target_id]
 
-    msg = f"✅ **تم قبول المستخدم [{target_id}] ومسموحله يكلمك في الخاص من غير تحذيرات.**"
+    msg = f"✅ **تم قبول المستخدم [{target_id}] ومسموحله يكلمك في الخاص بدون تحذيرات.**"
     await (event.edit(msg) if event.out else event.reply(msg))
 
 @client.on(events.NewMessage(pattern=r"^\.رفض$"))
@@ -323,7 +368,7 @@ async def enable_sleep_mode(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 7. ميزة الوقت في الاسم
+# 8. ميزة الوقت في الاسم
 # ----------------------------------------------------
 async def time_name_loop():
     global TIME_NAME_ACTIVE, ORIGINAL_NAME
@@ -377,7 +422,7 @@ async def disable_time_name(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 8. أوامر الأقسام (من .م1 إلى .م31)
+# 9. أوامر الأقسام (من .م1 إلى .م31)
 # ----------------------------------------------------
 
 # --- م1 ---
@@ -431,7 +476,7 @@ async def get_date(event):
 @client.on(events.NewMessage(pattern=r"^\.م3$"))
 async def m3(event):
     if not is_sudo(event): return
-    text = f"📌 **أوامر إدارة الجروب والكتم (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بدون رد في الخاص، وبالرد في الجروبات)\n• `.فك كتم`\n\n{SOURCE_TITLE}"
+    text = f"📌 **أوامر إدارة الجروب والكتم (`.م3`):**\n• `.حظر` (بالرد)\n• `.فك حظر` (بالرد)\n• `.كتم` (بدون رد في الخاص، وبالرد في الجروبات)\n• `.فك كتم`\n• `.تفليش` (تصفية وطرد الأعضاء)\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.حظر$"))
@@ -809,7 +854,7 @@ async def m16(event):
 async def add_members_zedthon(event):
     if not is_sudo(event): return
     if not event.is_group:
-        msg = "⚠️ **استخدم الأمر ده جوة الجروب اللي عاوزه نضيف فيه الأعضاء!**"
+        msg = "⚠️ **استخدم الأمر ده جوة الجروب اللي عاوز تضيف فيه الأعضاء!**"
         return await (event.edit(msg) if event.out else event.reply(msg))
 
     target_chat = event.pattern_match.group(2)
@@ -1319,7 +1364,7 @@ async def streak_status(event):
     await (event.edit(text) if event.out else event.reply(text))
 
 # ----------------------------------------------------
-# 9. الحارس الذكي والمراقبة لجميع الأحداث
+# 10. الحارس الذكي والمراقبة لجميع الأحداث
 # ----------------------------------------------------
 
 @client.on(events.NewMessage(outgoing=True))
@@ -1420,7 +1465,7 @@ async def global_incoming_watcher(event):
             await event.reply(warn_msg)
 
 # ----------------------------------------------------
-# 10. تشغيل السورس
+# 11. تشغيل السورس
 # ----------------------------------------------------
 async def main():
     await client.start()
