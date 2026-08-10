@@ -35,7 +35,7 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
+SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 CAIRO_TZ = pytz.timezone('Africa/Cairo')
 
 # ----------------------------------------------------
@@ -994,10 +994,15 @@ async def add_members_zedthon(event):
             continue
 
         try:
-            await client(InviteToChannelRequest(channel=event.chat_id, users=[user]))
-            added_count += 1
+            res = await client(InviteToChannelRequest(channel=event.chat_id, users=[user]))
+            
+            # التحقق من استجابة تليجرام الفعلية لمنع العد الوهمي
+            if hasattr(res, 'users') and res.users:
+                added_count += 1
+            else:
+                failed_count += 1
 
-            if added_count % 5 == 0:
+            if added_count % 5 == 0 and added_count > 0:
                 await status_msg.edit(
                     f"⚙️ **جاري الإضافة...**\n\n"
                     f"✅ **تمت إضافة:** `{added_count}`\n"
