@@ -37,9 +37,9 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
+SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
 CAIRO_TZ = pytz.timezone('Africa/Cairo')
-TELEGRAM_SYSTEM_IDS = {777000, 42777, 1271266}  # استثناء حسابات التليجرام الرسمية من الحظر والحماية
+TELEGRAM_SYSTEM_IDS = {777000, 42777, 1271266}  # استثناء حسابات التليجرام الرسمية
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
@@ -1527,17 +1527,17 @@ async def restart_bot(event):
 @client.on(events.NewMessage(pattern=r"^\.م29(\s+.*)?$"))
 async def m29(event):
     if not is_sudo(event): return
-    text = f"📌 **قياس السرعة (`.م29`):**\n• `.بنج`\n\n{SOURCE_TITLE}"
+    text = f"📌 **السرعة والاستجابة (`.م29`):**\n• `.بنج`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.بنج(\s+.*)?$"))
 async def ping_cmd(event):
     if not is_sudo(event): return
-    start = datetime.datetime.now(CAIRO_TZ)
-    status_msg = await (event.edit("🚀 **PONG!**") if event.out else event.reply("🚀 **PONG!**"))
-    end = datetime.datetime.now(CAIRO_TZ)
+    start = datetime.datetime.now()
+    msg = await (event.edit("🚀 **جاري قياس السرعة...**") if event.out else event.reply("🚀 **جاري قياس السرعة...**"))
+    end = datetime.datetime.now()
     ms = (end - start).microseconds / 1000
-    await status_msg.edit(f"⚡ **سرعة الاستجابة:** `{ms:.2f}ms`\n{SOURCE_TITLE}")
+    await msg.edit(f"⚡ **استجابة السورس:** `{ms:.2f} ms`\n{SOURCE_TITLE}")
 
 # --- م30 ---
 @client.on(events.NewMessage(pattern=r"^\.م30(\s+.*)?$"))
@@ -1547,146 +1547,119 @@ async def m30(event):
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.الاحصائيات(\s+.*)?$"))
-async def user_stats(event):
+async def stats_cmd(event):
     if not is_sudo(event): return
-    status_msg = await (event.edit("⏳ جاري تجميع الإحصائيات...") if event.out else event.reply("⏳ جاري تجميع الإحصائيات..."))
+    status = await (event.edit("📊 **جاري جلب الإحصائيات...**") if event.out else event.reply("📊 **جاري جلب الإحصائيات...**"))
     dialogs = await client.get_dialogs()
-    pms, groups, channels = 0, 0, 0
-    for d in dialogs:
-        if d.is_user: pms += 1
-        elif d.is_group: groups += 1
-        elif d.is_channel: channels += 1
-    await status_msg.edit(f"📊 **إحصائيات حسابك:**\n💬 **الخاص:** `{pms}`\n👥 **الجروبات:** `{groups}`\n📢 **القنوات:** `{channels}`")
+    users = sum(1 for d in dialogs if d.is_user)
+    groups = sum(1 for d in dialogs if d.is_group)
+    channels = sum(1 for d in dialogs if d.is_channel)
+    text = (
+        f"📊 **إحصائيات حسابك:**\n\n"
+        f"👤 **المحادثات الخاصة:** `{users}`\n"
+        f"👥 **الجروبات:** `{groups}`\n"
+        f"📢 **القنوات:** `{channels}`\n"
+        f"📁 **الإجمالي:** `{len(dialogs)}`\n\n"
+        f"{SOURCE_TITLE}"
+    )
+    await status.edit(text)
 
 # --- م31 ---
 @client.on(events.NewMessage(pattern=r"^\.م31(\s+.*)?$"))
 async def m31(event):
     if not is_sudo(event): return
-    text = f"📌 **الستريك وحالة السورس (`.م31`):**\n• `.ستريك`\n\n{SOURCE_TITLE}"
+    text = f"📌 **حالة الستريك (`.م31`):**\n• `.ستريك`\n\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 @client.on(events.NewMessage(pattern=r"^\.ستريك(\s+.*)?$"))
-async def streak_status(event):
+async def streak_cmd(event):
     if not is_sudo(event): return
-    text = f"🔥 **الستريك شغال 100% بدون انقطاع ✅**\n{SOURCE_TITLE}"
+    text = f"🔥 **الستريك شغال وبحالة ممتازة!**\n{SOURCE_TITLE}"
     await (event.edit(text) if event.out else event.reply(text))
 
 # ----------------------------------------------------
-# 10. الحارس الذكي والمراقبة لجميع الأحداث
+# 10. معالج الأحداث العامة في الخلفية
 # ----------------------------------------------------
-
-@client.on(events.NewMessage(outgoing=True))
-async def auto_disable_sleep(event):
-    global SLEEP_ACTIVE, SLEEP_START_TIME
-    if SLEEP_ACTIVE:
-        if event.raw_text and event.raw_text.strip().startswith(".سليب"):
-            return
+@client.on(events.NewMessage)
+async def incoming_handler(event):
+    global SLEEP_ACTIVE, SLEEP_START_TIME, PM_WARNINGS
+    
+    # 1. إلغاء وضع السليب تلقائياً عند إرسال أي رسالة
+    if event.out and SLEEP_ACTIVE:
         SLEEP_ACTIVE = False
         SLEEP_START_TIME = None
-        print("🛑 تم تعطيل وضع السليب تلقائياً بسبب إرسالك رسالة.")
+        await event.reply("🌅 **تم إلغاء وضع السليب (النوم) تلقائياً لبدء نشاطك!**")
 
-@client.on(events.NewMessage(incoming=True))
-async def global_incoming_watcher(event):
-    global PM_WARNINGS, SLEEP_ACTIVE, SLEEP_START_TIME
-    sender_id = event.sender_id
-    if not sender_id: return
+    # 2. تطبيق الحظر العام والكتم العام والكتم الخاص
+    if not event.out and event.sender_id:
+        if event.sender_id in GBAN_SET and event.is_group:
+            try:
+                await client.kick_participant(event.chat_id, event.sender_id)
+                await event.delete()
+            except Exception:
+                pass
+            return
 
-    if is_sudo(event): return
+        if event.sender_id in GMUTE_SET or (event.chat_id in MUTED_USERS and event.sender_id in MUTED_USERS[event.chat_id]):
+            try:
+                await event.delete()
+            except Exception:
+                pass
+            return
 
-    if sender_id in GBAN_SET:
-        try:
-            await event.delete()
-            if event.is_group:
-                await client(EditBannedRequest(event.chat_id, sender_id, ChatBannedRights(until_date=None, view_messages=True)))
-        except Exception: pass
-        return
+        if event.is_private and event.chat_id in MUTED_PMS:
+            try:
+                await event.delete()
+            except Exception:
+                pass
+            return
 
-    if sender_id in GMUTE_SET or (event.chat_id in MUTED_USERS and sender_id in MUTED_USERS[event.chat_id]):
-        try: await event.delete()
-        except Exception: pass
-        return
-
-    if event.is_private and sender_id in MUTED_PMS:
-        try: await event.delete()
-        except Exception: pass
-        return
-
-    if event.raw_text:
-        for w in BLOCKED_WORDS:
-            if w in event.raw_text:
-                try: await event.delete()
-                except Exception: pass
+    # 3. حذف الكلمات الممنوعة تلقائياً
+    if not event.out and BLOCKED_WORDS and event.text:
+        for word in BLOCKED_WORDS:
+            if word in event.text:
+                try:
+                    await event.delete()
+                except Exception:
+                    pass
                 return
 
-    if event.raw_text in REPLY_MAP:
-        await event.reply(REPLY_MAP[event.raw_text])
+    # 4. الردود التلقائية
+    if not event.out and REPLY_MAP and event.text in REPLY_MAP:
+        await event.reply(REPLY_MAP[event.text])
 
-    if AUTO_SAVE_MEDIA and event.is_private and (event.photo or event.video or event.media):
-        try:
-            file_path = await event.download_media()
-            if file_path:
-                await client.send_file("me", file_path, caption=f"📥 **تم حفظ ميديا من الخاص تلقائياً من:** [{sender_id}](tg://user?id={sender_id})\n{SOURCE_TITLE}")
-                if os.path.exists(file_path): os.remove(file_path)
-        except Exception as e:
-            print(f"خطأ في حفظ الذاتية: {e}")
-
-    if SLEEP_ACTIVE and SLEEP_START_TIME:
-        should_respond = False
-        if event.is_private:
-            should_respond = True
-        elif event.is_group and (event.mentioned or event.is_reply):
-            reply_msg = await event.get_reply_message() if event.is_reply else None
-            me = await client.get_me()
-            if event.mentioned or (reply_msg and reply_msg.sender_id == me.id):
-                should_respond = True
-
-        if should_respond:
-            now = datetime.datetime.now(CAIRO_TZ)
-            diff = int((now - SLEEP_START_TIME).total_seconds())
-            hours = diff // 3600
-            minutes = (diff % 3600) // 60
-            seconds = diff % 60
-            
-            sleep_text = (
-                f"😴 **صاحب الحساب في وضع سليب (نايم)**\n\n"
-                f"⏱️ **محتجب بقاله:** `{hours}` ساعة و `{minutes}` دقيقة و `{seconds}` ثانية."
-            )
-            await event.reply(sleep_text)
-
-    if PM_PROTECTION_ACTIVE and event.is_private and sender_id not in APPROVED_USERS and sender_id not in TELEGRAM_SYSTEM_IDS:
-        current_warns = PM_WARNINGS.get(sender_id, 0) + 1
-        PM_WARNINGS[sender_id] = current_warns
-
-        if current_warns >= 7:
-            await event.reply("🚫 **تم إعطاؤك بلوك لتجاوزك 7 تحذيرات في الخاص.**")
-            try:
+    # 5. حماية الخاص مع تحذيرات وتطبيق البلوك التلقائي
+    if event.is_private and not event.out and PM_PROTECTION_ACTIVE:
+        sender_id = event.sender_id
+        if sender_id not in DEVELOPERS and sender_id not in APPROVED_USERS and sender_id not in TELEGRAM_SYSTEM_IDS:
+            PM_WARNINGS[sender_id] = PM_WARNINGS.get(sender_id, 0) + 1
+            warn_count = PM_WARNINGS[sender_id]
+            if warn_count >= 7:
+                await event.reply("🚫 **تم تجاوز عدد التحذيرات المسموح بها! تم حظرك تلقائياً.**")
                 await client(BlockRequest(id=sender_id))
+            else:
+                await event.reply(
+                    f"⚠️ **تنبيه:** الحماية مفعلة في الخاص.\n"
+                    f"الرجاء انتظار القبول من صاحب الحساب.\n"
+                    f"🔢 **التحذير:** `{warn_count}/7`"
+                )
+
+    # 6. الحفظ التلقائي للميديا والذاتية في الخاص
+    if event.is_private and not event.out and AUTO_SAVE_MEDIA:
+        if event.media:
+            try:
+                file_path = await client.download_media(event.media)
+                if file_path:
+                    await client.send_file("me", file_path, caption=f"📥 **حفظ تلقائي للميديا من:** `{event.sender_id}`\n{SOURCE_TITLE}")
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
             except Exception as e:
-                print(f"خطأ البلوك: {e}")
-            del PM_WARNINGS[sender_id]
-        else:
-            warn_msg = (
-                f"⚠️ **تحذير ({current_warns}/7):**\n"
-                f"حماية الخاص متفعلة! بلاش سبام عشان ما تاخدش بلوك تلقائي.\n"
-                f"انتظر لما يكتب `.قبول` للرد عليك."
-            )
-            await event.reply(warn_msg)
+                print(f"خطأ الحفظ التلقائي: {e}")
 
 # ----------------------------------------------------
-# 11. تشغيل السورس
+# 11. تشغيل الحساب
 # ----------------------------------------------------
-async def main():
-    await client.start()
-    me = await client.get_me()
-    print(f"✅ تم التشغيل بنجاح باسم: {me.first_name} (@{me.username}) | ID: {me.id}")
-    DEVELOPERS.add(MAIN_DEV_ID)
-    DEVELOPERS.add(me.id)
-    print("🚀 السورس جاهز واستقبل الأوامر!")
-    await client.run_until_disconnected()
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        print("🛑 تم إيقاف التشغيل.")
+print("🇵🇹 سورس البرتغالي يعمل بنجاح... 🇵🇹")
+client.start()
+client.run_until_disconnected()
 
