@@ -33,7 +33,7 @@ from telethon.errors import (
 # ----------------------------------------------------
 API_ID = int(os.getenv("API_ID", "24576280"))
 API_HASH = os.getenv("API_HASH", "2d331fea63e2dfeb0d2c2cf71a9a0cc9")
-STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offBYF9yOSPs4eJYlvYFznWk_-xAkKxb3jHUecIxUaObuXYs4HPpfOiE45pYlIGmNToeZtpy8K6OhNW26h-HbG3MGhir-yrRgb8bufvixbF-XZ8lBkyJZ0OOahRl9l3SUYQhDdzptbTrSy2I4LDOvt96bu4yEV64owrtHKlE1KneUkdaKdhP7wM-1nAjOLvn1EbaUKGyEVfblvq2CBA-WepXGSzqa6Qvp0sG0bf0cPEZOcLPXM1NZEvRxrbcBuuh4u9bf-NGQtJaD6_S_3pb-9JVvcNl2wJjcGnfc5lV33XDmSKSA7iOfq3PujNg1oxX0E=")
+STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBuynj7Xmp0_wFayhL0WyKiPP_KTvuNOTUFTIYEW5m_mH0gGZ9v75K0HMvvrco3PK59r0J7Elci_sqV37-5IAVrvUDYcIkkCcZAlMYpDUjD7XNuR4ITchGkkSCYwGQVMAbPbPawmYyrd7p1GHXrrG9JUF6VAqhohkzTbVI5BYB8j4Eb0zNAT62WI3xBBiNiJT5t4h2Sbxhi781O4L-zVMkll1pKKvVkMYdfMKJHC-ycBJdDFMfJB52o3mzISzpEF_JOA2DDPAomR35zxV-BvMUIUpN1hq1_Kc4JOQyB3soFT08tmNW6KdKH5M7bHIm01jLrFCElROtpHCKWf36W2X-_HE=")
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
@@ -139,10 +139,7 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 • `.م25` ➪ كتم الخاصة (`.كتمخاص` ، `.فك كتمخاص`)
 • `.م26` ➪ حفظ الميديا يدوي (`.حفظ` ، `.حفظ الذاتية`)
 • `.م27` ➪ الرتب والاصلاحات (`.رتبتي` ، `.رتبته`)
-• `.م28` ➪ النظام (`.ريستارت`)
-• `.م29` ➪ السرعة والاستجابة (`.بنج`)
-• `.م30` ➪ إحصائيات الحساب (`.الاحصائيات`)
-• `.م31` ➪ حالة الستريك (`.ستريك`)"""
+• `.م28` ➪ النظام (`.ريستارت`)"""
 
 # ----------------------------------------------------
 # 5. أوامر المطورين والأوامر الأساسية
@@ -169,7 +166,7 @@ async def clone_user_cmd(event):
         target_id = reply.sender_id
 
     if not target_id:
-        msg = "❌ **تعذر معرفة آيدي الحساب (ممكن يكون خافي حسابه من الخصوصية في التحويل).**"
+        msg = "❌ **تعذر معرفة آيدي الحساب (ممكن يكون خافي حسابه من الخخصوصية في التحويل).**"
         return await (event.edit(msg) if event.out else event.reply(msg))
 
     status_msg = await (event.edit("⏳ **جاري نسخ الاسم، البايو، وصورة البروفايل...**") if event.out else event.reply("⏳ **جاري نسخ الاسم، البايو، وصورة البروفايل...**"))
@@ -517,7 +514,7 @@ async def disable_time_name(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 9. أوامر الأقسام (من .م1 إلى .م31)
+# 9. أوامر الأقسام (من .م1 إلى .م28)
 # ----------------------------------------------------
 
 # --- م1 ---
@@ -1523,99 +1520,57 @@ async def restart_bot(event):
     await (event.edit("🔄 **جاري إعادة تشغيل السورس...**") if event.out else event.reply("🔄 **جاري إعادة تشغيل السورس...**"))
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# --- م29 ---
-@client.on(events.NewMessage(pattern=r"^\.م29(\s+.*)?$"))
-async def m29(event):
-    if not is_sudo(event): return
-    text = f"📌 **السرعة والاستجابة (`.م29`):**\n• `.بنج`\n\n{SOURCE_TITLE}"
-    await (event.edit(text) if event.out else event.reply(text))
-
-@client.on(events.NewMessage(pattern=r"^\.بنج(\s+.*)?$"))
-async def ping_cmd(event):
-    if not is_sudo(event): return
-    start = datetime.datetime.now()
-    msg = await (event.edit("🚀 **جاري قياس السرعة...**") if event.out else event.reply("🚀 **جاري قياس السرعة...**"))
-    end = datetime.datetime.now()
-    ms = (end - start).microseconds / 1000
-    await msg.edit(f"⚡ **استجابة السورس:** `{ms:.2f} ms`\n{SOURCE_TITLE}")
-
-# --- م30 ---
-@client.on(events.NewMessage(pattern=r"^\.م30(\s+.*)?$"))
-async def m30(event):
-    if not is_sudo(event): return
-    text = f"📌 **إحصائيات الحساب (`.م30`):**\n• `.الاحصائيات`\n\n{SOURCE_TITLE}"
-    await (event.edit(text) if event.out else event.reply(text))
-
-@client.on(events.NewMessage(pattern=r"^\.الاحصائيات(\s+.*)?$"))
-async def stats_cmd(event):
-    if not is_sudo(event): return
-    status = await (event.edit("📊 **جاري جلب الإحصائيات...**") if event.out else event.reply("📊 **جاري جلب الإحصائيات...**"))
-    dialogs = await client.get_dialogs()
-    users = sum(1 for d in dialogs if d.is_user)
-    groups = sum(1 for d in dialogs if d.is_group)
-    channels = sum(1 for d in dialogs if d.is_channel)
-    text = (
-        f"📊 **إحصائيات حسابك:**\n\n"
-        f"👤 **المحادثات الخاصة:** `{users}`\n"
-        f"👥 **الجروبات:** `{groups}`\n"
-        f"📢 **القنوات:** `{channels}`\n"
-        f"📁 **الإجمالي:** `{len(dialogs)}`\n\n"
-        f"{SOURCE_TITLE}"
-    )
-    await status.edit(text)
-
-# --- م31 ---
-@client.on(events.NewMessage(pattern=r"^\.م31(\s+.*)?$"))
-async def m31(event):
-    if not is_sudo(event): return
-    text = f"📌 **حالة الستريك (`.م31`):**\n• `.ستريك`\n\n{SOURCE_TITLE}"
-    await (event.edit(text) if event.out else event.reply(text))
-
-@client.on(events.NewMessage(pattern=r"^\.ستريك(\s+.*)?$"))
-async def streak_cmd(event):
-    if not is_sudo(event): return
-    text = f"🔥 **الستريك شغال وبحالة ممتازة!**\n{SOURCE_TITLE}"
-    await (event.edit(text) if event.out else event.reply(text))
-
 # ----------------------------------------------------
-# 10. معالج الأحداث العامة في الخلفية
+# 10. المعالج العام للرسائل (الحماية، الكتم، الردود، الحفظ التلقائي)
 # ----------------------------------------------------
 @client.on(events.NewMessage)
-async def incoming_handler(event):
-    global SLEEP_ACTIVE, SLEEP_START_TIME, PM_WARNINGS
-    
-    # 1. إلغاء وضع السليب تلقائياً عند إرسال أي رسالة
+async def handler_all_messages(event):
+    global SLEEP_ACTIVE
+
+    # إيقاف وضع السليب تلقائياً عند قيام صاحب الحساب بإرسال أي رسالة
     if event.out and SLEEP_ACTIVE:
         SLEEP_ACTIVE = False
-        SLEEP_START_TIME = None
-        await event.reply("🌅 **تم إلغاء وضع السليب (النوم) تلقائياً لبدء نشاطك!**")
+        print("تم تعطيل وضع السليب تلقائياً بسبب نشاطك.")
 
-    # 2. تطبيق الحظر العام والكتم العام والكتم الخاص
-    if not event.out and event.sender_id:
-        if event.sender_id in GBAN_SET and event.is_group:
-            try:
-                await client.kick_participant(event.chat_id, event.sender_id)
-                await event.delete()
-            except Exception:
-                pass
-            return
+    # تجاهل المعالجة إن لم يوجد مرسل أو كانت الرسالة من النظام
+    if not event.sender_id or event.sender_id in TELEGRAM_SYSTEM_IDS:
+        return
 
-        if event.sender_id in GMUTE_SET or (event.chat_id in MUTED_USERS and event.sender_id in MUTED_USERS[event.chat_id]):
-            try:
-                await event.delete()
-            except Exception:
-                pass
-            return
+    # الحظر العام
+    if event.sender_id in GBAN_SET and not event.out:
+        try:
+            await event.delete()
+        except Exception:
+            pass
+        return
 
-        if event.is_private and event.chat_id in MUTED_PMS:
+    # الكتم العام والكتم الخاص بالجروب أو الشات
+    if not event.out:
+        if event.sender_id in GMUTE_SET:
             try:
                 await event.delete()
             except Exception:
                 pass
             return
 
-    # 3. حذف الكلمات الممنوعة تلقائياً
-    if not event.out and BLOCKED_WORDS and event.text:
+        if event.is_group or event.is_channel:
+            if event.chat_id in MUTED_USERS and event.sender_id in MUTED_USERS[event.chat_id]:
+                try:
+                    await event.delete()
+                except Exception:
+                    pass
+                return
+
+        if event.is_private:
+            if event.chat_id in MUTED_PMS:
+                try:
+                    await event.delete()
+                except Exception:
+                    pass
+                return
+
+    # فحص الكلمات الممنوعة
+    if BLOCKED_WORDS and event.text and not is_sudo(event):
         for word in BLOCKED_WORDS:
             if word in event.text:
                 try:
@@ -1624,42 +1579,42 @@ async def incoming_handler(event):
                     pass
                 return
 
-    # 4. الردود التلقائية
-    if not event.out and REPLY_MAP and event.text in REPLY_MAP:
+    # حماية الخاص
+    if PM_PROTECTION_ACTIVE and event.is_private and not event.out:
+        if event.sender_id not in APPROVED_USERS and event.sender_id not in DEVELOPERS:
+            PM_WARNINGS[event.sender_id] = PM_WARNINGS.get(event.sender_id, 0) + 1
+            warn_count = PM_WARNINGS[event.sender_id]
+            if warn_count >= 7:
+                await event.reply("⛔ **تم تجاوز عدد التحذيرات المسموح بها! تم حظرك تلقائياً.**")
+                await client(BlockRequest(id=event.sender_id))
+            else:
+                await event.reply(f"⚠️ **تنبيه:** الخاص محمي بواسطة اليوزربوت.\nيرجى انتظار الموافقة قبل الإرسال.\n📌 **التحذير:** ({warn_count}/7)")
+
+    # حفظ ميديا الخاص تلقائياً عند التفعيل
+    if AUTO_SAVE_MEDIA and event.is_private and not event.out and event.media:
+        try:
+            file_path = await event.download_media()
+            if file_path:
+                await client.send_file("me", file_path, caption=f"📥 **حفظ تلقائي للميديا من:** `{event.sender_id}`\n{SOURCE_TITLE}")
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+        except Exception as e:
+            print(f"خطأ في الحفظ التلقائي: {e}")
+
+    # الردود التلقائية
+    if event.text and event.text in REPLY_MAP and not event.out:
         await event.reply(REPLY_MAP[event.text])
 
-    # 5. حماية الخاص مع تحذيرات وتطبيق البلوك التلقائي
-    if event.is_private and not event.out and PM_PROTECTION_ACTIVE:
-        sender_id = event.sender_id
-        if sender_id not in DEVELOPERS and sender_id not in APPROVED_USERS and sender_id not in TELEGRAM_SYSTEM_IDS:
-            PM_WARNINGS[sender_id] = PM_WARNINGS.get(sender_id, 0) + 1
-            warn_count = PM_WARNINGS[sender_id]
-            if warn_count >= 7:
-                await event.reply("🚫 **تم تجاوز عدد التحذيرات المسموح بها! تم حظرك تلقائياً.**")
-                await client(BlockRequest(id=sender_id))
-            else:
-                await event.reply(
-                    f"⚠️ **تنبيه:** الحماية مفعلة في الخاص.\n"
-                    f"الرجاء انتظار القبول من صاحب الحساب.\n"
-                    f"🔢 **التحذير:** `{warn_count}/7`"
-                )
-
-    # 6. الحفظ التلقائي للميديا والذاتية في الخاص
-    if event.is_private and not event.out and AUTO_SAVE_MEDIA:
-        if event.media:
-            try:
-                file_path = await client.download_media(event.media)
-                if file_path:
-                    await client.send_file("me", file_path, caption=f"📥 **حفظ تلقائي للميديا من:** `{event.sender_id}`\n{SOURCE_TITLE}")
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-            except Exception as e:
-                print(f"خطأ الحفظ التلقائي: {e}")
-
 # ----------------------------------------------------
-# 11. تشغيل الحساب
+# 11. تشغيل البوت
 # ----------------------------------------------------
-print("🇵🇹 سورس البرتغالي يعمل بنجاح... 🇵🇹")
-client.start()
-client.run_until_disconnected()
+async def main():
+    print("🚀 جاري تشغيل السورس...")
+    await client.start()
+    me = await client.get_me()
+    print(f"🇵🇹 سورس البرتغالي يعمل بنجاح... 🇵🇹: {me.first_name} (@{me.username})")
+    await client.run_until_disconnected()
+
+if __name__ == "__main__":
+    client.loop.run_until_complete(main())
 
