@@ -18,13 +18,14 @@ from telethon.tl.functions.messages import (
 from telethon.tl.functions.phone import (
     CreateGroupCallRequest, DiscardGroupCallRequest
 )
-from telethon.tl.functions.contacts import BlockRequest
+from telethon.tl.functions.contacts import BlockRequest, DeleteContactsRequest
 from telethon.tl.functions.users import GetFullUserRequest
 from telethon.tl.types import ChatBannedRights, ChatAdminRights, ChannelParticipantsKicked
 from telethon.sessions import StringSession
 from telethon.errors import (
     UserPrivacyRestrictedError, ChatAdminRequiredError, UserNotMutualContactError,
-    UserChannelsTooMuchError, UserBotError, PeerFloodError, FloodWaitError, UserKickedError
+    UserChannelsTooMuchError, UserBotError, PeerFloodError, FloodWaitError, UserKickedError,
+    UserAlreadyParticipantError
 )
 
 # ----------------------------------------------------
@@ -36,8 +37,9 @@ STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu6wTWUI6KGHqA-rltuId7offB
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
-SOURCE_TITLE = "🇵🇹 Portuguese source 🇵🇹"
+SOURCE_TITLE = "🇵🇹 سورس البرتغالي 🇵🇹"
 CAIRO_TZ = pytz.timezone('Africa/Cairo')
+TELEGRAM_SYSTEM_IDS = {777000, 42777, 1271266}  # استثناء حسابات التليجرام الرسمية من الحظر والحماية
 
 # ----------------------------------------------------
 # 2. الذاكرة والمتغيرات العامة
@@ -146,15 +148,11 @@ ALL_COMMANDS_TEXT = f"""✦─────『 {SOURCE_TITLE} 』─────�
 # 5. أوامر المطورين والأوامر الأساسية
 # ----------------------------------------------------
 
-# مرونة مطابقةRegex لتقبل أي مسافات إضافية بعد الأمر
 @client.on(events.NewMessage(pattern=r"^\.(اوامري|الاوامر)(\s+.*)?$"))
 async def show_all_commands(event):
     if not is_sudo(event): return
     await (event.edit(ALL_COMMANDS_TEXT) if event.out else event.reply(ALL_COMMANDS_TEXT))
 
-# ----------------------------------------------------
-# أمر الانتحال (نسخ الاسم والبايو والصورة)
-# ----------------------------------------------------
 @client.on(events.NewMessage(pattern=r"^\.انتحال(\s+.*)?$"))
 async def clone_user_cmd(event):
     if not is_sudo(event): return
@@ -270,7 +268,7 @@ async def list_developers(event):
     await (event.edit(msg) if event.out else event.reply(msg))
 
 # ----------------------------------------------------
-# 6. أمر تفليش الجروب (التصفية السريعة)
+# 6. أمر تفليش الجروب
 # ----------------------------------------------------
 
 @client.on(events.NewMessage(pattern=r"^\.تفليش(\s+.*)?$"))
@@ -326,9 +324,14 @@ async def whisper_cmd(event):
 
     if event.is_reply:
         reply = await event.get_reply_message()
-        target_user = await client.get_entity(reply.sender_id)
-        target = f"@{target_user.username}" if target_user.username else str(target_user.id)
-        whisper_text = input_text if input_text else ""
+        if reply and reply.sender_id:
+            try:
+                target_user = await client.get_entity(reply.sender_id)
+                target = f"@{target_user.username}" if target_user.username else str(target_user.id)
+                whisper_text = input_text if input_text else ""
+            except Exception:
+                target = str(reply.sender_id)
+                whisper_text = input_text if input_text else ""
     elif input_text:
         parts = input_text.split(maxsplit=1)
         if len(parts) >= 2 and (parts[0].startswith("@") or parts[0].isdigit()):
@@ -426,7 +429,7 @@ async def block_user_cmd(event):
 
     try:
         await (event.edit("تم حظر المستخدم 🚫") if event.out else event.reply("تم حظر المستخدم 🚫"))
-        await client(BlockRequest(target_id))
+        await client(BlockRequest(id=target_id))
     except Exception as e:
         print(f"خطأ في تنفيذ البلوك: {e}")
 
@@ -460,16 +463,18 @@ async def enable_sleep_mode(event):
 # ----------------------------------------------------
 async def time_name_loop():
     global TIME_NAME_ACTIVE, ORIGINAL_NAME
-    try:
-        while TIME_NAME_ACTIVE:
+    while TIME_NAME_ACTIVE:
+        try:
             current_time = datetime.datetime.now(CAIRO_TZ).strftime("%I:%M")
             new_name = f"{ORIGINAL_NAME} | {current_time}"
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
-            await asyncio.sleep(60)
-    except asyncio.CancelledError:
-        pass
-    except Exception as e:
-        print(f"خطأ في الوقت: {e}")
+        except asyncio.CancelledError:
+            break
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
+        except Exception as e:
+            print(f"خطأ في الوقت: {e}")
+        await asyncio.sleep(60)
 
 @client.on(events.NewMessage(pattern=r"^\.تفعيل الوقت(\s+.*)?$"))
 async def enable_time_name(event):
@@ -704,8 +709,11 @@ async def purge_messages(event):
     if not is_sudo(event): return
     num = int(event.pattern_match.group(1))
     await event.delete()
-    msgs = await client.get_messages(event.chat_id, limit=num)
-    await client.delete_messages(event.chat_id, msgs)
+    msgs = []
+    async for msg in client.iter_messages(event.chat_id, limit=num):
+        msgs.append(msg.id)
+    if msgs:
+        await client.delete_messages(event.chat_id, msgs)
 
 # --- م6 ---
 @client.on(events.NewMessage(pattern=r"^\.م6(\s+.*)?$"))
@@ -727,11 +735,12 @@ async def start_ahkam_game(event):
     text = "🎲 **فتحت باب الانضمام للعبة الأحكام!**\nاكتب `.لعب` عشان تدخل (آخري 10 لعيبة). واكتب `.بدء` للقرعة."
     await (event.edit(text) if event.out else event.reply(text))
 
-@client.on(events.NewMessage(pattern=r"^\.لعب$", incoming=True))
+@client.on(events.NewMessage(pattern=r"^\.لعب\s*$"))
 async def join_ahkam_game(event):
     global GAME_ACTIVE, GAME_PLAYERS, GAME_CHAT_ID
     if not GAME_ACTIVE or event.chat_id != GAME_CHAT_ID: return
     sender = await event.get_sender()
+    if not sender: return
     if any(p['id'] == sender.id for p in GAME_PLAYERS): return await event.reply("⚠️ انت منضم للعبة بالفعل!")
     if len(GAME_PLAYERS) >= 10: return await event.reply("❌ اكتمل العدد خلاص!")
     GAME_PLAYERS.append({'id': sender.id, 'name': sender.first_name or "عضو"})
@@ -985,7 +994,10 @@ async def join_chat(event):
     try:
         if "joinchat/" in link or "+" in link:
             hash_val = link.split("+")[-1].split("joinchat/")[-1]
-            await client(ImportChatInviteRequest(hash_val))
+            try:
+                await client(ImportChatInviteRequest(hash_val))
+            except UserAlreadyParticipantError:
+                pass
         else:
             username = link.split("/")[-1].replace("@", "")
             await client(JoinChannelRequest(username))
@@ -1025,7 +1037,7 @@ async def add_members_zedthon(event):
     target_chat = event.pattern_match.group(2)
     if not target_chat and event.is_reply:
         reply_msg = await event.get_reply_message()
-        if reply_msg.text:
+        if reply_msg and reply_msg.text:
             target_chat = reply_msg.text.strip()
 
     if not target_chat:
@@ -1037,8 +1049,11 @@ async def add_members_zedthon(event):
     try:
         if "joinchat/" in target_chat or "+" in target_chat:
             hash_val = target_chat.split("+")[-1].split("joinchat/")[-1]
-            updates = await client(ImportChatInviteRequest(hash_val))
-            source_entity = updates.chats[0]
+            try:
+                updates = await client(ImportChatInviteRequest(hash_val))
+                source_entity = updates.chats[0]
+            except UserAlreadyParticipantError:
+                source_entity = await client.get_entity(target_chat)
         else:
             username = target_chat.split("/")[-1].replace("@", "")
             source_entity = await client.get_entity(username)
@@ -1109,22 +1124,24 @@ async def delete_added_contacts(event):
     try:
         if "joinchat/" in target or "+" in target:
             hash_val = target.split("+")[-1].split("joinchat/")[-1]
-            updates = await client(ImportChatInviteRequest(hash_val))
-            entity = updates.chats[0]
+            try:
+                updates = await client(ImportChatInviteRequest(hash_val))
+                entity = updates.chats[0]
+            except UserAlreadyParticipantError:
+                entity = await client.get_entity(target)
         else:
             username = target.split("/")[-1].replace("@", "")
             entity = await client.get_entity(username)
 
-        users = await client.get_participants(entity)
         deleted_count = 0
         failed = 0
 
-        for u in users:
+        async for u in client.iter_participants(entity):
             if u.bot or u.deleted or u.is_self: continue
             try:
-                await client(functions.contacts.DeleteContactsRequest(id=[u]))
+                await client(DeleteContactsRequest(id=[u.id]))
                 deleted_count += 1
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)
             except Exception: failed += 1
 
         await status_msg.edit(f"✅ **تم مسحهم من الجهات!**\n🗑️ اتتمسحوا: `{deleted_count}`\n❌ فشل: `{failed}`")
@@ -1145,14 +1162,13 @@ async def clean_deleted(event):
         msg = "⚠️ للجروبات بس."
         return await (event.edit(msg) if event.out else event.reply(msg))
     status_msg = await (event.edit("🔍 جاري فحص الحسابات المحذوفة...") if event.out else event.reply("🔍 جاري فحص الحسابات المحذوفة..."))
-    users = await client.get_participants(event.chat_id)
     c = 0
-    for u in users:
+    async for u in client.iter_participants(event.chat_id):
         if u.deleted:
             try:
                 await client(EditBannedRequest(event.chat_id, u.id, ChatBannedRights(until_date=None, view_messages=True)))
                 c += 1
-            except: pass
+            except Exception: pass
     await status_msg.edit(f"🧹 تم طرد `{c}` حسابات محذوفة.")
 
 # --- م18 ---
@@ -1169,15 +1185,14 @@ async def purge_bots(event):
         msg = "⚠️ للجروبات بس."
         return await (event.edit(msg) if event.out else event.reply(msg))
     status_msg = await (event.edit("🔍 جاري نفض البوتات...") if event.out else event.reply("🔍 جاري نفض البوتات..."))
-    users = await client.get_participants(event.chat_id)
     c = 0
     me = await client.get_me()
-    for u in users:
+    async for u in client.iter_participants(event.chat_id):
         if u.bot and u.id != me.id:
             try:
                 await client(EditBannedRequest(event.chat_id, u.id, ChatBannedRights(until_date=None, view_messages=True)))
                 c += 1
-            except: pass
+            except Exception: pass
     await status_msg.edit(f"🤖 تم طرد `{c}` بوت بنجاح.")
 
 # --- م19 ---
@@ -1583,24 +1598,24 @@ async def global_incoming_watcher(event):
             await event.delete()
             if event.is_group:
                 await client(EditBannedRequest(event.chat_id, sender_id, ChatBannedRights(until_date=None, view_messages=True)))
-        except: pass
+        except Exception: pass
         return
 
     if sender_id in GMUTE_SET or (event.chat_id in MUTED_USERS and sender_id in MUTED_USERS[event.chat_id]):
         try: await event.delete()
-        except: pass
+        except Exception: pass
         return
 
     if event.is_private and sender_id in MUTED_PMS:
         try: await event.delete()
-        except: pass
+        except Exception: pass
         return
 
     if event.raw_text:
         for w in BLOCKED_WORDS:
             if w in event.raw_text:
                 try: await event.delete()
-                except: pass
+                except Exception: pass
                 return
 
     if event.raw_text in REPLY_MAP:
@@ -1638,21 +1653,21 @@ async def global_incoming_watcher(event):
             )
             await event.reply(sleep_text)
 
-    if PM_PROTECTION_ACTIVE and event.is_private and sender_id not in APPROVED_USERS:
+    if PM_PROTECTION_ACTIVE and event.is_private and sender_id not in APPROVED_USERS and sender_id not in TELEGRAM_SYSTEM_IDS:
         current_warns = PM_WARNINGS.get(sender_id, 0) + 1
         PM_WARNINGS[sender_id] = current_warns
 
         if current_warns >= 7:
             await event.reply("🚫 **تم إعطاؤك بلوك لتجاوزك 7 تحذيرات في الخاص.**")
             try:
-                await client(BlockRequest(sender_id))
+                await client(BlockRequest(id=sender_id))
             except Exception as e:
                 print(f"خطأ البلوك: {e}")
             del PM_WARNINGS[sender_id]
         else:
             warn_msg = (
                 f"⚠️ **تحذير ({current_warns}/7):**\n"
-                f"! بلاش سبام عشان ما تاخدش بلوك تلقائي.\n"
+                f"حماية الخاص متفعلة! بلاش سبام عشان ما تاخدش بلوك تلقائي.\n"
                 f"انتظر لما يكتب `.قبول` للرد عليك."
             )
             await event.reply(warn_msg)
