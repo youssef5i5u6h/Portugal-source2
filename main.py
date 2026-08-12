@@ -33,7 +33,7 @@ from telethon.errors import (
 # ----------------------------------------------------
 API_ID = int(os.getenv("API_ID", "24576280"))
 API_HASH = os.getenv("API_HASH", "2d331fea63e2dfeb0d2c2cf71a9a0cc9")
-STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBuynj7Xmp0_wFayhL0WyKiPP_KTvuNOTUFTIYEW5m_mH0gGZ9v75K0HMvvrco3PK59r0J7Elci_sqV37-5IAVrvUDYcIkkCcZAlMYpDUjD7XNuR4ITchGkkSCYwGQVMAbPbPawmYyrd7p1GHXrrG9JUF6VAqhohkzTbVI5BYB8j4Eb0zNAT62WI3xBBiNiJT5t4h2Sbxhi781O4L-zVMkll1pKKvVkMYdfMKJHC-ycBJdDFMfJB52o3mzISzpEF_JOA2DDPAomR35zxV-BvMUIUpN1hq1_Kc4JOQyB3soFT08tmNW6KdKH5M7bHIm01jLrFCElROtpHCKWf36W2X-_HE=")
+STRING_SESSION = os.getenv("STRING_SESSION", "1BJWap1wBu07FzEskKaCJiylVxxZC21khD8_2Asd0QIwqBvfR5czpoXUN7vNtzKBGwaB9oE4Q1JkKbmvDTKV4hxYTncJ_tT47rfJ-Ocw_fuKn0LaYJ2TjsO8h8GqKZcZk5Qts0el1bABmFzPDFwtfeyhfURllaau67ktlMMFQlJLLO170rh15eOFMUlcFJsIKZgxb4fx-m_Vo9nFBg-1nMdAGnKqcMnIjOvp-ioseRVeiDVWFL7g-VqCBtc5CloI-6hgAlpD80sajJ8T4hNyVt-BbF641roQPxwsNykjBZ-M6r3SeR_0B1wDQM0mwqXvwj3d0iA7yRf0L1dGhKxZyixBmnmzdNP0=")
 
 client = TelegramClient(StringSession(STRING_SESSION.strip()), API_ID, API_HASH)
 
